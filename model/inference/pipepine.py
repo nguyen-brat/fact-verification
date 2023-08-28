@@ -1,6 +1,6 @@
 from haystack.pipelines import Pipeline
 from haystack.nodes import BM25Retriever, EmbeddingRetriever
-from .custom_node import fact_verification
+from .custom_node import fact_verification, reranking
 from haystack.nodes import JoinDocuments
 
 def fact_checking_pipline(
@@ -20,7 +20,8 @@ def fact_checking_pipline(
     pipeline.add_node(
         component=JoinDocuments(join_mode="concatenate"), name="JoinResults", inputs=["BM25Retriever", "EmbeddingRetriever"]
     )
-    pipeline.add_node(component=fact_verification, name="verification", inputs=["JoinResults"])
+    pipeline.add_node(component=reranking, name='reranking', input=["JoinResults"])
+    pipeline.add_node(component=fact_verification, name="verification", inputs=["reranking"])
 
     return pipeline
 

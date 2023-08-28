@@ -1,6 +1,7 @@
 from .feature_extractor import feature_extract
 import math
 import torch
+from transformers import AutoTokenizer, AutoModel
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import BatchNorm1d, Linear, ReLU
@@ -114,15 +115,55 @@ class fact_verification(nn.Module):
         nlayer,
         pool='att',
         model='amberoad/bert-multilingual-passage-reranking-msmarco',
-        device='cuda',
+        #device='cuda',
     ):
+        self.nfeat=nfeat,
+        self.nins=nins,
+        self.nclass=nclass,
+        self.nlayer=nlayer,
+        self.pool=pool,
+        self.model=model,
         self.feature_extractor = feature_extract(model=model)
         self.gear = GEAR(nfeat, nins, nclass, nlayer, pool)
     
     def foward(self, inputs):
-        feature = self.feature_extractor(inputs)
-        output = self.gear(feature)
+        embedding = self.feature_extractor(inputs)
+        output = self.gear(embedding)
         return output
+    
+    @classmethod
+    def from_pretrained(
+        cls,
+        path,
+    ):
+        checkpoint = torch.load(path)
+        cls(
+            nfeat=checkpoint['nfeat'],
+            nins=checkpoint['nins'],
+            nclass=checkpoint['nclass'],
+            nlayer=checkpoint['nlayer'],
+            pool=checkpoint['pool'],
+            model=checkpoint['model'],
+        )
+        cls.feature_extractor.model = AutoModel.from_pretrained(path)
+        cls.gear = cls.gear.load_state_dict(checkpoint['fact_verify_state_dict'])
+        return cls
+
+    def save_pretrained(
+            self,
+            path='model/claim_verification/saved_model', # ]folder store save model
+    ):
+        self.feature_extractor.model.save_pretrained(path, from_pt = True)
+        torch.save({
+            'nfeat':self.nfeat,
+            'nins':self.nins,
+            'nclass':self.nclass,
+            'nlayer':self.nlayer,
+            'pool':self.pool,
+            'model':self.model,
+            'fact_verify_state_dict': self.gear.state_dict(),
+            }, path+'/gear_checkpoint.pt')
+        
 
 if __name__ == "__main__":
     pass
