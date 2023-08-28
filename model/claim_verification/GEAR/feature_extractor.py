@@ -1,23 +1,9 @@
 from transformers import AutoTokenizer, AutoModel
 import torch
 import torch.nn.functional as F
-import os
 from typing import List
 
-def GET_PROJECT_ROOT():
-    # goto the root folder of LogBar
-    current_abspath = os.path.abspath(__file__)
-    while True:
-        if os.path.split(current_abspath)[1] == 'AIChallenge2023':
-            project_root = current_abspath
-            break
-        else:
-            current_abspath = os.path.dirname(current_abspath)
-    return project_root
-
-PROJECT_ROOT = GET_PROJECT_ROOT()
-
-class semantic_extract:
+class feature_extract:
     def __init__(
             self,
             model = 'sentence-transformers/stsb-xlm-r-multilingual',
