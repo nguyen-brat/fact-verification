@@ -1,5 +1,5 @@
 from haystack.pipelines import Pipeline
-from haystack.nodes import BM25Retriever, EmbeddingRetriever
+from haystack.nodes import BM25Retriever, EmbeddingRetriever, SentenceTransformersRanker
 from .custom_node import fact_verification, reranking
 from haystack.nodes import JoinDocuments
 

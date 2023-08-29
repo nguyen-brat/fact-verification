@@ -1,0 +1,147 @@
+from transformers import AutoTokenizer, AutoModel
+from .dataloader import BiEncoderSample
+import collections
+import logging
+import random
+from typing import Tuple, List
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+from torch import Tensor as T
+from torch import nn
+
+BiEncoderBatch = collections.namedtuple(
+    "BiENcoderInput",
+    [
+        "question_ids",
+        "question_segments",
+        "context_ids",
+        "ctx_segments",
+        "is_positive",
+        "hard_negatives",
+        "encoder_type",
+    ],
+)
+
+def dot_product_scores(q_vectors: T, ctx_vectors: T) -> T:
+    """
+    calculates q->ctx scores for every row in ctx_vector
+    :param q_vector:
+    :param ctx_vector:
+    :return:
+    """
+    # q_vector: n1 x D, ctx_vectors: n2 x D, result n1 x n2
+    r = torch.matmul(q_vectors, torch.transpose(ctx_vectors, 0, 1))
+    return r
+
+
+def cosine_scores(q_vector: T, ctx_vectors: T):
+    # q_vector: n1 x D, ctx_vectors: n2 x D, result n1 x n2
+    return F.cosine_similarity(q_vector, ctx_vectors, dim=1)
+
+class Encoder(torch.nn.Module):
+    def __init__(
+            self,
+            model = 'sentence-transformers/stsb-xlm-r-multilingual',
+    ):
+        super(Encoder, self).__init__()
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model = AutoModel.from_pretrained(model).to(self.device)
+        self.tokenizer = AutoTokenizer.from_pretrained(model)
+
+    def get_embedding(
+            self,
+            inputs:List,
+    ):
+        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt', return_token_type_ids=True, return_attention_mask =True,)
+        model_output = self.model(
+            input_ids = encode_inputs['input_ids'].to(self.device),
+            attention_mask = encode_inputs['attention_mask'].to(self.device),
+            token_type_ids = encode_inputs['token_type_ids'].to(self.device),
+        )
+        sentences_embed = self.mean_pooling(model_output, encode_inputs['attention_mask'].to(self.device))
+        sentences_embed = F.normalize(sentences_embed, p=2, dim=1)
+        return sentences_embed
+    
+    @staticmethod
+    def mean_pooling(model_output, attention_mask):
+        token_embeddings = model_output[0] #First element of model_output contains all token embeddings
+        input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+        return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+    
+class BiEncoder(torch.nn.Module):
+    def __init__(
+            self,
+            q_model,
+            ctx_model,
+    ):
+        self.q_encoder = Encoder(q_model)
+        self.ctx_encoder = Encoder(ctx_model)
+    
+    def forward(
+            self,
+            questions, # n question
+            contexts, # n*m context (m context per quesion)
+    ):
+        q_pooled_output = self.q_encoder(questions)
+        ctx_pooled_oupput = self.ctx_encoder(contexts)
+        return q_pooled_output, ctx_pooled_oupput
+    
+    def create_biencoder_input(
+            samples: List[BiEncoderSample],
+            insert_title: bool,
+            num_hard_negatives: int = 0,
+            num_other_negatives: int = 0,
+            shuffle: bool = True,
+            shuffle_positives: bool = False,
+            hard_neg_fallback: bool = True,
+            query_token: str = None,
+    )->BiEncoderBatch:
+        pass
+
+class BiEncoderNllLoss(object):
+    def calc(
+        self,
+        q_vectors: T,
+        ctx_vectors: T,
+        positive_idx_per_question: list,
+        hard_negative_idx_per_question: list = None,
+        loss_scale: float = None,
+    ) -> Tuple[T, int]:
+        """
+        Computes nll loss for the given lists of question and ctx vectors.
+        Note that although hard_negative_idx_per_question in not currently in use, one can use it for the
+        loss modifications. For example - weighted NLL with different factors for hard vs regular negatives.
+        :return: a tuple of loss value and amount of correct predictions per batch
+        """
+        scores = self.get_scores(q_vectors, ctx_vectors)
+
+        if len(q_vectors.size()) > 1:
+            q_num = q_vectors.size(0)
+            scores = scores.view(q_num, -1)
+
+        softmax_scores = F.log_softmax(scores, dim=1)
+
+        loss = F.nll_loss(
+            softmax_scores,
+            torch.tensor(positive_idx_per_question).to(softmax_scores.device),
+            reduction="mean",
+        )
+
+        max_score, max_idxs = torch.max(softmax_scores, 1)
+        correct_predictions_count = (max_idxs == torch.tensor(positive_idx_per_question).to(max_idxs.device)).sum()
+
+        if loss_scale:
+            loss.mul_(loss_scale)
+
+        return loss, correct_predictions_count
+
+    @staticmethod
+    def get_scores(q_vector: T, ctx_vectors: T) -> T:
+        f = BiEncoderNllLoss.get_similarity_function()
+        return f(q_vector, ctx_vectors)
+
+    @staticmethod
+    def get_similarity_function():
+        return dot_product_scores
