@@ -1,5 +1,6 @@
 from transformers import AutoTokenizer, AutoModel
 from .dataloader import BiEncoderSample
+import os
 import collections
 from typing import Tuple, List
 import torch
@@ -35,9 +36,10 @@ class Encoder(torch.nn.Module):
     def __init__(
             self,
             model = 'sentence-transformers/stsb-xlm-r-multilingual',
+            device=None,
     ):
         super(Encoder, self).__init__()
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device == None else device
         self.model = AutoModel.from_pretrained(model).to(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained(model)
 
@@ -66,7 +68,10 @@ class BiEncoder(torch.nn.Module):
             self,
             q_model,
             ctx_model,
+            device,
     ):
+        super().__init__()
+        self.device = device
         self.q_encoder = Encoder(q_model)
         self.ctx_encoder = Encoder(ctx_model)
     
@@ -75,19 +80,35 @@ class BiEncoder(torch.nn.Module):
             questions, # n question
             contexts, # n*m context (m context per quesion)
     ):
-        q_pooled_output = self.q_encoder(questions)
-        ctx_pooled_oupput = self.ctx_encoder(contexts)
+        q_pooled_output = self.q_encoder(questions, self.device)
+        ctx_pooled_oupput = self.ctx_encoder(contexts, self.device)
         return q_pooled_output, ctx_pooled_oupput
     
-    def create_biencoder_input(
-            samples: List[BiEncoderSample],
-            insert_title: bool,
-            num_hard_negatives: int = 0,
-            num_other_negatives: int = 0,
-            shuffle: bool = True,
-            shuffle_positives: bool = False,
-    )->BiEncoderBatch:
+    def predict(
+            self,
+            question:str,
+            contexts:List[str],
+    ):
         pass
+    
+    @classmethod
+    def from_pretrained(
+            cls,
+            path='model/sentence_retrieval/saved_model',
+    ):
+        q_encoder_path = os.path.join(path, 'q_encoder')
+        ctx_encoder_path = os.path.join(path, 'ctx_encoder')
+        return cls(q_encoder_path, ctx_encoder_path)
+    
+    def save_pretrained(
+            self,
+            path='model/claim_verification/saved_model', # ]folder store save model
+    ):
+        q_encoder_path = os.path.join(path, 'q_encoder')
+        ctx_encoder_path = os.path.join(path, 'ctx_encoder')
+        self.q_encoder.save_pretrained(q_encoder_path)
+        self.ctx_encoder.save_pretrained(ctx_encoder_path)
+
 
 class BiEncoderNllLoss(object):
     def calc(
