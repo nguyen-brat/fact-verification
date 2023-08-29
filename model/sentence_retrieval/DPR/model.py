@@ -1,26 +1,17 @@
 from transformers import AutoTokenizer, AutoModel
 from .dataloader import BiEncoderSample
 import collections
-import logging
-import random
 from typing import Tuple, List
-
-import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import Tensor as T
-from torch import nn
 
 BiEncoderBatch = collections.namedtuple(
     "BiENcoderInput",
     [
-        "question_ids",
-        "question_segments",
-        "context_ids",
-        "ctx_segments",
+        "questions",
+        "contexts",
         "is_positive",
-        "hard_negatives",
-        "encoder_type",
     ],
 )
 
@@ -95,8 +86,6 @@ class BiEncoder(torch.nn.Module):
             num_other_negatives: int = 0,
             shuffle: bool = True,
             shuffle_positives: bool = False,
-            hard_neg_fallback: bool = True,
-            query_token: str = None,
     )->BiEncoderBatch:
         pass
 
@@ -106,7 +95,6 @@ class BiEncoderNllLoss(object):
         q_vectors: T,
         ctx_vectors: T,
         positive_idx_per_question: list,
-        hard_negative_idx_per_question: list = None,
         loss_scale: float = None,
     ) -> Tuple[T, int]:
         """
