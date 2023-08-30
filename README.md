@@ -4,6 +4,8 @@ This is code for joining uit data challenge using haystack, transformers and sen
 ![plot](pipeline.png)
 ## Train all model
 chmod +x inference/scripts.sh
+
+
 ./inference/scripts.sh
 ## Inference
 ```python
