@@ -1,16 +1,14 @@
 from .model import BiEncoder, BiEncoderNllLoss
+from .dataloader import dataloader
 import torch
-from torch import nn
 import logging
 import os
-from typing import Dict, Type, Callable
+from typing import Dict, Type
 import torch
-from torch import nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm, trange
 from sentence_transformers import SentenceTransformer
-from sentence_transformers.evaluation import SentenceEvaluator
 from accelerate import Accelerator
 
 logger = logging.getLogger(__name__)
@@ -20,7 +18,7 @@ class DPRTrainer:
             self,
             q_model,
             ctx_model,
-            device,
+            device=None,
     ):
         self.accelerator = Accelerator()
         if device is None:
@@ -30,47 +28,17 @@ class DPRTrainer:
         
     def fit(self,
             train_dataloader: DataLoader,
-            evaluator: SentenceEvaluator = None,
             epochs: int = 1,
-            loss_fct = None,
-            activation_fct = nn.Identity(),
             scheduler: str = 'WarmupLinear',
             warmup_steps: int = 10000,
             optimizer_class: Type[Optimizer] = torch.optim.AdamW,
             optimizer_params: Dict[str, object] = {'lr': 2e-5},
             weight_decay: float = 0.01,
-            evaluation_steps: int = 0,
             output_path: str = None,
             save_best_model: bool = True,
             max_grad_norm: float = 1,
-            callback: Callable[[float, int, int], None] = None,
             show_progress_bar: bool = True
             ):
-        """
-        Train the model with the given training objective
-        Each training objective is sampled in turn for one batch.
-        We sample only as many batches from each objective as there are in the smallest one
-        to make sure of equal training with each dataset.
-
-        :param train_dataloader: DataLoader with training InputExamples
-        :param evaluator: An evaluator (sentence_transformers.evaluation) evaluates the model performance during training on held-out dev data. It is used to determine the best model that is saved to disc.
-        :param epochs: Number of epochs for training
-        :param loss_fct: Which loss function to use for training. If None, will use nn.BCEWithLogitsLoss() if self.config.num_labels == 1 else nn.CrossEntropyLoss()
-        :param activation_fct: Activation function applied on top of logits output of model.
-        :param scheduler: Learning rate scheduler. Available schedulers: constantlr, warmupconstant, warmuplinear, warmupcosine, warmupcosinewithhardrestarts
-        :param warmup_steps: Behavior depends on the scheduler. For WarmupLinear (default), the learning rate is increased from o up to the maximal learning rate. After these many training steps, the learning rate is decreased linearly back to zero.
-        :param optimizer_class: Optimizer
-        :param optimizer_params: Optimizer parameters
-        :param weight_decay: Weight decay for model parameters
-        :param evaluation_steps: If > 0, evaluate the model using evaluator after each number of training steps
-        :param output_path: Storage path for the model and evaluation files
-        :param save_best_model: If true, the best model (according to evaluator) is stored at output_path
-        :param max_grad_norm: Used for gradient normalization.
-        :param callback: Callback function that is invoked after each evaluation.
-                It must accept the following three parameters in this order:
-                `score`, `epoch`, `steps`
-        :param show_progress_bar: If True, output a tqdm progress bar
-        """
 
         self.model.to(self.device)
             
@@ -91,6 +59,7 @@ class DPRTrainer:
             scheduler = SentenceTransformer._get_scheduler(optimizer, scheduler=scheduler, warmup_steps=warmup_steps, t_total=num_train_steps)
 
         skip_scheduler = False
+        self.model, optimizer, train_dataloader = self.accelerator.prepare(self.model, optimizer, train_dataloader)
         for epoch in trange(epochs, desc="Epoch", disable=not show_progress_bar):
             training_steps = 0
             self.model.zero_grad()
@@ -108,15 +77,25 @@ class DPRTrainer:
                     scheduler.step()
 
                 training_steps += 1
+            self.evaluation(metrics=None, output_path=output_path, save_best_model=save_best_model)
+        self.model.save_pretrained()
+    
+    def evaluation(
+            self,
+            metrics,
+            output_path,
+            save_best_model:bool=True,
+    ):
+        pass
 
-                if evaluator is not None and evaluation_steps > 0 and training_steps % evaluation_steps == 0:
-                    self._eval_during_training(evaluator, output_path, save_best_model, epoch, training_steps, callback)
-
-                    self.model.zero_grad()
-                    self.model.train()
-
-            if evaluator is not None:
-                self._eval_during_training(evaluator, output_path, save_best_model, epoch, -1, callback)
+        
 
 if __name__ == "__main__":
-    pass
+    train_data = dataloader('data_path')
+    train_dataloader = DataLoader(train_data)
+    trainer = DPRTrainer('vinai/phobert-base-v2', 'vinai/phobert-base-v2')
+    trainer.fit(
+        epochs=10,
+        output_path='model/sentence_retrieval/saved_model',
+    )
+

@@ -23,7 +23,7 @@ BiEncoderBatch = collections.namedtuple(
     ],
 )
 
-def dataloader(Dataset):
+class dataloader(Dataset):
     def __init__(
             self,
             data_path,
