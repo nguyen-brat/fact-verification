@@ -1,6 +1,8 @@
 from transformers import AutoTokenizer, AutoModel
 from .dataloader import BiEncoderSample
+import faiss
 import os
+from tqdm import tqdm
 import collections
 from typing import Tuple, List
 import torch
@@ -74,6 +76,7 @@ class BiEncoder(torch.nn.Module):
         self.device = device
         self.q_encoder = Encoder(q_model)
         self.ctx_encoder = Encoder(ctx_model)
+        self.ctx_embed = None
     
     def forward(
             self,
@@ -108,6 +111,37 @@ class BiEncoder(torch.nn.Module):
         ctx_encoder_path = os.path.join(path, 'ctx_encoder')
         self.q_encoder.save_pretrained(q_encoder_path)
         self.ctx_encoder.save_pretrained(ctx_encoder_path)
+
+    def save_ctx_tensor(
+            self,
+            ctx_path:str='ctx_data_path',
+            save_path='model/sentence_retrieval/saved_model/save_ctx_tensor.pt',
+    ):
+        ctx = self.read_raw_data(ctx_path)
+        chuking = 100
+        list_tensor = []
+        print('running DPR embedding for the documents')
+        for i in tqdm(range(0, len(ctx), chuking)):
+            tensor = self.ctx_encoder.get_embedding(ctx[i:i+100])
+            list_tensor.append(tensor)
+        ctx_tensor = torch.cat(list_tensor, dim=-1)
+        torch.save(ctx_tensor, save_path)
+    
+    @staticmethod
+    def read_raw_data(data_path):
+        assert "not implement read data method in dpr"
+
+    def cal_documents_score(
+            self,
+            claim,
+            save_tensor_path='model/sentence_retrieval/saved_model/save_ctx_tensor.pt',
+    ):
+        if self.ctx_embed == None:
+            self.ctx_embed = torch.load(save_tensor_path)
+        claim_embed = self.q_encoder.get_embedding([claim])
+        scores = dot_product_scores(claim_embed, self.ctx_embed) # reimplement in faiss
+        return scores
+        
 
 
 class BiEncoderNllLoss(object):

@@ -98,4 +98,5 @@ if __name__ == "__main__":
         epochs=10,
         output_path='model/sentence_retrieval/saved_model',
     )
+    trainer.model.save_ctx_tensor('save_raw_ctx_data_path')
 
