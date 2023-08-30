@@ -2,7 +2,8 @@ from transformers import Trainer, TrainingArguments
 import torch
 from torch import nn
 from .model import fact_verification
-from .dataloader import dataset, data_collator
+from .dataloader import dataloader
+from torch.utils.data import DataLoader
 
 class CustomTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
@@ -17,24 +18,26 @@ class CustomTrainer(Trainer):
 
 if __name__ == '__main__':
     model = fact_verification()
+    train_data = dataloader('train_data_path')
+    dev_data = dataloader('dev_data_path')
+    train_dataloader = DataLoader(train_data)
+    dev_dataloader = DataLoader(dev_data)
+
     training_args = TrainingArguments(
-        #output_dir="model/claim_verification/saved_model",
         learning_rate=2e-5,
         per_device_train_batch_size=16,
         num_train_epochs=2,
         weight_decay=0.01,
         evaluation_strategy="epoch",
-        #save_strategy="epoch",
         load_best_model_at_end=True,
-        push_to_hub=False,
     )
 
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=dataset["train"],
-        eval_dataset=dataset["test"],
-        data_collator=data_collator,
+        train_dataset=train_dataloader,
+        eval_dataset=dev_dataloader,
+        #data_collator=data_collator,
         #compute_metrics=compute_metrics,
     )
     trainer.train()
