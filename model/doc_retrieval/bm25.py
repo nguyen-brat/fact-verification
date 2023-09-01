@@ -45,9 +45,3 @@ class doc_retrieval:
     @staticmethod
     def read(file_path):
         pass
-
-    def save(self):
-        '''
-        save bm25 object
-        '''
-        pass

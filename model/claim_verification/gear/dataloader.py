@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple
 FactVerificationResultType = {
     "SUPPORT":0,
     "REFUSE":1,
-    "NEIF":2 # not enough information
+    "NEI":2 # not enough information
 }
 
 class FactVerificationSample(object):
@@ -30,7 +30,7 @@ class dataloader(Dataset):
     def __getitem__(self, idx):
         pass
     
-    def create_biencoder_input(
+    def create_fact_verification_input(
             samples: List[FactVerificationSample],
             insert_title: bool,
             num_hard_negatives: int = 0,
@@ -38,4 +38,7 @@ class dataloader(Dataset):
             shuffle: bool = True,
             shuffle_positives: bool = False,
     )->List[FactVerificationSample]:
+        '''
+        TODO
+        '''
         pass

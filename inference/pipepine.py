@@ -1,9 +1,16 @@
 from model.doc_retrieval.bm25 import doc_retrieval
 from model.sentence_retrieval.DPR.model import BiEncoder
 from model.reranking.model import CrossEncoder
+from underthesea import word_tokenize
 from model.claim_verification.gear.model import fact_verification
 import torch
+import numpy as np
 from typing import List
+
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
 
 class Pipeline:
     def __init__(
@@ -48,7 +55,7 @@ class Pipeline:
         '''
         pass
 
-    def rerank_inference(
+    def fact_verify_inference(
             self,
             query:str,
             contexts:List[str],
@@ -58,15 +65,28 @@ class Pipeline:
         '''
         pass
 
-    def fact_verify_inference(
+    def rerank_inference(
             self,
             claim:str,
-            fact:List[str],
+            facts:List[str],
+            tokenize:bool=False,
     ):
         '''
         perform fact checking inference
         '''
-        pass
+        if tokenize:
+            claim = word_tokenize(claim, format='text')
+        reranking_score = []
+        for fact in facts:
+            if tokenize:
+                fact = word_tokenize(fact, format='text')
+            pair = [claim, fact]
+            result = softmax(self.reranking.predict(pair))[1]
+            reranking_score.append(result)
+        sort_index = np.argsort(np.array(reranking_score))
+        reranking_answer = list(np.array(fact)[sort_index])
+        reranking_answer.reverse()
+        return reranking_answer
 
 if __name__ == "__main__":
     pipe = Pipeline()

@@ -6,18 +6,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import BatchNorm1d, Linear, ReLU
 
-class feature_extract:
+class feature_extract(nn.Module):
     def __init__(
             self,
             model = 'sentence-transformers/stsb-xlm-r-multilingual',
+            device = None,
     ):
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device==None else device
         self.model = AutoModel.from_pretrained(model).to(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained(model)
 
-    def get_embedding(
+    def forward(
             self,
-            inputs:List,
+            inputs,
     ):
         encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt', return_token_type_ids=True, return_attention_mask =True,)
         model_output = self.model(
@@ -40,17 +41,17 @@ class SelfAttentionLayer(nn.Module):
             self,
             nhid,
             nins,
-            device='cuda',
+            device=None,
     ):
         super(SelfAttentionLayer, self).__init__()
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device==None else device
         self.nhid = nhid
         self.nins = nins
-        self.device = device
         self.project = nn.Sequential(
             Linear(nhid, 64),
             ReLU(True),
             Linear(64, 1)
-        ).to(device)
+        ).to(self.device)
 
     def forward(self, inputs, index, claims):
         tmp = None
@@ -71,10 +72,11 @@ class SelfAttentionLayer(nn.Module):
 
 
 class AttentionLayer(nn.Module):
-    def __init__(self, nins, nhid):
+    def __init__(self, nins, nhid, device=None):
         super(AttentionLayer, self).__init__()
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device==None else device
         self.nins = nins
-        self.attentions = [SelfAttentionLayer(nhid=nhid * 2, nins=nins) for _ in range(nins)]
+        self.attentions = [SelfAttentionLayer(nhid=nhid * 2, nins=nins, device=self.device) for _ in range(nins)]
 
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
@@ -94,23 +96,23 @@ class GEAR(nn.Module):
             nclass,
             nlayer,
             pool,
-            device='cuda',
+            device=None,
     ):
         super(GEAR, self).__init__()
         self.nlayer = nlayer
-        self.device = device
-        self.attentions = [AttentionLayer(nins, nfeat) for _ in range(nlayer)]
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device==None else device
+        self.attentions = [AttentionLayer(nins, nfeat, device=self.device) for _ in range(nlayer)]
         self.batch_norms = [BatchNorm1d(nins) for _ in range(nlayer)]
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
 
         self.pool = pool
         if pool == 'att':
-            self.aggregate = SelfAttentionLayer(nfeat * 2, nins)
-        self.index = torch.LongTensor([0]).to(device)
+            self.aggregate = SelfAttentionLayer(nfeat * 2, nins, device=self.device)
+        self.index = torch.LongTensor([0]).to(self.device)
 
-        self.weight = nn.Parameter(torch.FloatTensor(nfeat, nclass)).to(device)
-        self.bias = nn.Parameter(torch.FloatTensor(nclass)).to(device)
+        self.weight = nn.Parameter(torch.FloatTensor(nfeat, nclass)).to(self.device)
+        self.bias = nn.Parameter(torch.FloatTensor(nclass)).to(self.device)
 
         stdv = 1. / math.sqrt(self.weight.size(1))
         self.weight.data.uniform_(-stdv, stdv)
@@ -143,20 +145,22 @@ class fact_verification(nn.Module):
         nlayer,
         pool='att',
         model='amberoad/bert-multilingual-passage-reranking-msmarco',
-        #device='cuda',
+        device=None,
     ):
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device==None else device
         self.nfeat=nfeat,
         self.nins=nins,
         self.nclass=nclass,
         self.nlayer=nlayer,
         self.pool=pool,
         self.model=model,
-        self.feature_extractor = feature_extract(model=model)
-        self.gear = GEAR(nfeat, nins, nclass, nlayer, pool)
+        self.feature_extractor = feature_extract(model=model, device=self.device)
+        self.gear = GEAR(nfeat, nins, nclass, nlayer, pool, device=self.device)
     
     def foward(self, inputs):
-        embedding = self.feature_extractor(inputs)
-        output = self.gear(embedding)
+        claim, fact = inputs.claim, inputs.facts
+        claim_embed, fact_embed = self.feature_extractor(claim)
+        output = self.gear(claim_embed, fact_embed)
         return output
     
     @classmethod
@@ -179,7 +183,7 @@ class fact_verification(nn.Module):
 
     def save_pretrained(
             self,
-            path='model/claim_verification/saved_model', # ]folder store save model
+            path='model/claim_verification/saved_model/gear', # ]folder store save model
     ):
         self.feature_extractor.model.save_pretrained(path, from_pt = True)
         torch.save({
