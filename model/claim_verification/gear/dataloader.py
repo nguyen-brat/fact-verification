@@ -6,16 +6,19 @@ import os
 import random
 from typing import Dict, List, Tuple
 
-FactVerificationResultType = {
-    "SUPPORT":0,
-    "REFUSE":1,
-    "NEI":2 # not enough information
-}
+class Verdict(object):
+    SUPPORT=0
+    REFUTED=1
+    NEI=2
 
 class FactVerificationSample(object):
     claim: str
-    facts: List[str]
-    result:FactVerificationResultType 
+    context: str
+    result:Verdict
+
+class FactVerificationBatch(object):
+    claims:List[str]
+    facts:List[List[str]] 
 
 class dataloader(Dataset):
     def __init__(
@@ -32,12 +35,8 @@ class dataloader(Dataset):
     
     def create_fact_verification_input(
             samples: List[FactVerificationSample],
-            insert_title: bool,
-            num_hard_negatives: int = 0,
-            num_other_negatives: int = 0,
             shuffle: bool = True,
-            shuffle_positives: bool = False,
-    )->List[FactVerificationSample]:
+    )->List[FactVerificationBatch]:
         '''
         TODO
         '''

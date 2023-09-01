@@ -159,7 +159,7 @@ class fact_verification(nn.Module):
     
     def foward(self, inputs):
         claim, fact = inputs.claim, inputs.facts
-        claim_embed, fact_embed = self.feature_extractor(claim)
+        claim_embed, fact_embed = self.feature_extractor(claim), self.feature_extractor(fact)
         output = self.gear(claim_embed, fact_embed)
         return output
     
