@@ -7,13 +7,11 @@ import os
 import random
 from typing import Dict, List, Tuple
 
-CrossEncoderPassage = collections.namedtuple("CrossEncoderPassage", ["text", "title"])
-
 class CrossEncoderSample(object):
     query: str
-    positive_passages: List[CrossEncoderPassage]
-    negative_passages: List[CrossEncoderPassage]
-    hard_negative_passages: List[CrossEncoderPassage]
+    positive_passages: List[str]
+    negative_passages: List[str]
+    hard_negative_passages: List[str]
 
 CrossEncoderBatch = List[InputExample] # [[claim, answer], [claim, answer]]
 
