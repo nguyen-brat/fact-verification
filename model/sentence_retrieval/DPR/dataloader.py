@@ -8,19 +8,32 @@ from typing import Dict, List, Tuple
 
 BiEncoderPassage = collections.namedtuple("BiEncoderPassage", ["text", "title"])
 
-class BiEncoderSample(object):
+# {
+#     'context':,
+#     'claim',
+#     'verdict',
+#     'evidient'
+# }
+
+class BiEncoderSample(object): # hom nay toi di hoc -> hom_nay toi di_hoc n_gram
     query: str
     positive_passages: List[BiEncoderPassage]
-    negative_passages: List[BiEncoderPassage]
-    hard_negative_passages: List[BiEncoderPassage]
+    negative_passages: List[BiEncoderPassage] # 10 cai negative
+    hard_negative_passages: List[BiEncoderPassage] # top 10 cau tra loi tu bm25
 
 BiEncoderBatch = collections.namedtuple(
     "BiENcoderInput",
     [
-        "questions",
-        "contexts",
-        "is_positive",
+        "questions", # list of question
+        "contexts", # list of answer (include positive answer, negative answer, hard negative)
+        "is_positive", # torch.tensor (number_question, number of context) (tensor include 0 and 1)
     ],
+    # ['bao lau nua thi ban duoc mot ty goi me', 'khong dong hoc phi thi co bi duoi hoc khong']
+    # ['gop 6 cau tra loi cua cau hoi']
+    #   [ # torch.tensor()
+    #     [0, 1, 0 , 0 , 0, 0],
+    #     [0, 0, 1, 0, 0, 0],
+    # ]
 )
 
 class dataloader(Dataset):

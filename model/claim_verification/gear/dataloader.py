@@ -5,26 +5,25 @@ import logging
 import os
 import random
 from typing import Dict, List, Tuple
+from transformers import AutoModelForCausalLM
 
-class Verdict(object):
-    SUPPORT=0
-    REFUTED=1
-    NEI=2
 
 class FactVerificationSample(object):
     claim: str
     context: str
-    result:Verdict
+    result:int # 0, 1, 2
 
-class FactVerificationBatch(object):
-    claims:List[str]
-    facts:List[List[str]] 
+class FactVerificationBatch(object): 
+    claims:List[str] # [claim1, claim2, claim3]
+    facts:List[List[str]] # [[evidient 1, evidient2, evidien3, evident5], [enviden]]
+    label:List[int]
 
 class dataloader(Dataset):
     def __init__(
             self,
             data_path,
     ):
+        model = AutoModelForCausalLM('bert-based-uncased')
         self.data_path = data_path
 
     def __len__(self):
@@ -39,5 +38,12 @@ class dataloader(Dataset):
     )->List[FactVerificationBatch]:
         '''
         TODO
+        '''
+        pass
+    
+    @staticmethod
+    def preprocess(path):
+        '''
+        take data path and return FactVerificationSample
         '''
         pass

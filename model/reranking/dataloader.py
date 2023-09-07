@@ -15,7 +15,7 @@ class CrossEncoderSample(object):
     negative_passages: List[CrossEncoderPassage]
     hard_negative_passages: List[CrossEncoderPassage]
 
-CrossEncoderBatch = List[InputExample]
+CrossEncoderBatch = List[InputExample] # [[claim, answer], [claim, answer]]
 
 class dataloader(Dataset):
     def __init__(

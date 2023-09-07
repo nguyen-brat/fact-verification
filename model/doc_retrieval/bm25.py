@@ -2,6 +2,7 @@ from rank_bm25 import BM25Okapi
 import pickle
 import os
 from typing import List
+from underthesea import word_tokenize
 
 class doc_retrieval:
     def __init__(
