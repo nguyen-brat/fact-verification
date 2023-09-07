@@ -103,13 +103,19 @@ class DPRTrainer:
               metrics.update(scores, sample.is_positive)
         return metrics.compute()
 
-if __name__ == "__main__":
+def main():
     train_data = dataloader('data_path')
+    val_data =dataloader('data_path')
     train_dataloader = DataLoader(train_data)
+    val_dataloader = DataLoader(val_data)
     trainer = DPRTrainer('vinai/phobert-base-v2', 'vinai/phobert-base-v2')
     trainer.fit(
+        train_dataloader=train_dataloader,
+        val_dataloader=val_dataloader,
         epochs=10,
         output_path='model/sentence_retrieval/saved_model',
     )
-    trainer.model.save_ctx_tensor('save_raw_ctx_data_path')
+
+if __name__ == "__main__":
+    main()
 
