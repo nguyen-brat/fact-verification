@@ -6,8 +6,6 @@ import os
 import random
 from typing import Dict, List, Tuple
 
-BiEncoderPassage = collections.namedtuple("BiEncoderPassage", ["text", "title"])
-
 # {
 #     'context':,
 #     'claim',
@@ -17,9 +15,9 @@ BiEncoderPassage = collections.namedtuple("BiEncoderPassage", ["text", "title"])
 
 class BiEncoderSample(object): # hom nay toi di hoc -> hom_nay toi di_hoc n_gram
     query: str
-    positive_passages: List[BiEncoderPassage]
-    negative_passages: List[BiEncoderPassage] # 10 cai negative
-    hard_negative_passages: List[BiEncoderPassage] # top 10 cau tra loi tu bm25
+    positive_passages: List[str]
+    negative_passages: List[str] # 10 cai negative
+    hard_negative_passages: List[str] # top 10 cau tra loi tu bm25
 
 BiEncoderBatch = collections.namedtuple(
     "BiENcoderInput",

@@ -5,6 +5,7 @@ import os
 from typing import Dict, Type, Callable, List
 import torch
 from torch import nn
+from torcheval.metrics import MulticlassPrecision
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm, trange
@@ -98,7 +99,7 @@ class CrossEncoder():
 
     def fit(self,
             train_dataloader: DataLoader,
-            evaluator: SentenceEvaluator = None,
+            val_dataloader: DataLoader=None,
             epochs: int = 1,
             loss_fct = None,
             activation_fct = nn.Identity(),
@@ -175,6 +176,12 @@ class CrossEncoder():
 
         skip_scheduler = False
         train_loss_list = []
+        if val_dataloader is not None:
+            self.model.eval()
+            acc = self.val_evaluation(val_dataloader, MulticlassPrecision(num_classes=2))
+            print(f'init model accuracy is {acc.item()}')
+            self.model.zero_grad()
+            self.model.train()
         for epoch in trange(epochs, desc="Epoch", disable=not show_progress_bar):
             training_steps = 0
             self.model.zero_grad()
@@ -214,19 +221,28 @@ class CrossEncoder():
 
                 training_steps += 1
 
-                if evaluator is not None and evaluation_steps > 0 and training_steps % evaluation_steps == 0:
-                    self._eval_during_training(evaluator, output_path, save_best_model, epoch, training_steps, callback)
+            if val_dataloader is not None:
+                self.model.eval()
+                acc = self.val_evaluation(val_dataloader, MulticlassPrecision(num_classes=2))
+                print(f'model accuracy is {acc.item()}')
+                self.model.zero_grad()
+                self.model.train()
 
-                    self.model.zero_grad()
-                    self.model.train()
-
-            if evaluator is not None:
-                self._eval_during_training(evaluator, output_path, save_best_model, epoch, -1, callback)
             print(f'loss value is {loss_value.item()}')
             train_loss_list.append(loss_value.item())
         return train_loss_list
 
-
+    def val_evaluation(self,
+                       val_dataloader,
+                       metrics,
+                       ):
+        val_dataloader.collate_fn = self.smart_batching_collate
+        with torch.no_grad():
+          for feature, label in val_dataloader:
+              proba = self.model(**feature, return_dict=True)
+              #print(proba, label)
+              metrics.update(proba.logits, label)
+        return metrics.compute()
 
     def predict(self, sentences: List[List[str]],
                batch_size: int = 32,
@@ -291,17 +307,6 @@ class CrossEncoder():
             pred_scores = pred_scores[0]
 
         return pred_scores
-
-    def _eval_during_training(self, evaluator, output_path, save_best_model, epoch, steps, callback):
-        """Runs evaluation during the training"""
-        if evaluator is not None:
-            score = evaluator(self, output_path=output_path, epoch=epoch, steps=steps)
-            if callback is not None:
-                callback(score, epoch, steps)
-            if score > self.best_score:
-                self.best_score = score
-                if save_best_model:
-                    self.save(output_path)
 
     def save(self, path):
         """
