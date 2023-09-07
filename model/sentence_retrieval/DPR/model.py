@@ -45,16 +45,12 @@ class Encoder(torch.nn.Module):
         self.model = AutoModel.from_pretrained(model).to(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained(model)
 
-    def get_embedding(
+    def forward(
             self,
-            inputs:List,
+            inputs:List[str],
     ):
-        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt', return_token_type_ids=True, return_attention_mask =True,)
-        model_output = self.model(
-            input_ids = encode_inputs['input_ids'].to(self.device),
-            attention_mask = encode_inputs['attention_mask'].to(self.device),
-            token_type_ids = encode_inputs['token_type_ids'].to(self.device),
-        )
+        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt').to(self.device)
+        model_output = self.model(**encode_inputs)
         sentences_embed = self.mean_pooling(model_output, encode_inputs['attention_mask'].to(self.device))
         sentences_embed = F.normalize(sentences_embed, p=2, dim=1)
         return sentences_embed
@@ -92,7 +88,14 @@ class BiEncoder(torch.nn.Module):
             question:str,
             contexts:List[str],
     ):
-        pass
+        self.q_encoder.eval()
+        self.ctx_encoder.eval()
+        with torch.no_grad():
+            question_embed = self.q_encoder(question)
+            contexts_embed = self.ctx_encoder(contexts)
+            scores = dot_product_scores(question_embed, contexts_embed)[0]
+        return scores
+
     
     @classmethod
     def from_pretrained(
@@ -126,23 +129,13 @@ class BiEncoder(torch.nn.Module):
             list_tensor.append(tensor)
         ctx_tensor = torch.cat(list_tensor, dim=-1)
         torch.save(ctx_tensor, save_path)
-    
-    @staticmethod
-    def read_raw_data(data_path):
-        assert "not implement read data method in dpr"
 
     def cal_documents_score(
             self,
             claim,
             save_tensor_path='model/sentence_retrieval/saved_model/save_ctx_tensor.pt',
     ):
-        if self.ctx_embed == None:
-            self.ctx_embed = torch.load(save_tensor_path)
-        claim_embed = self.q_encoder.get_embedding([claim])
-        scores = dot_product_scores(claim_embed, self.ctx_embed) # reimplement in faiss
-        return scores
-        
-
+        pass
 
 class BiEncoderNllLoss(object):
     def calc(

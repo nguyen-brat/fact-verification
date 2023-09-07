@@ -108,12 +108,9 @@ class CrossEncoder():
             optimizer_class: Type[Optimizer] = torch.optim.AdamW,
             optimizer_params: Dict[str, object] = {'lr': 2e-5},
             weight_decay: float = 0.01,
-            evaluation_steps: int = 0,
             output_path: str = None,
             save_best_model: bool = True,
             max_grad_norm: float = 1,
-            use_amp: bool = False,
-            callback: Callable[[float, int, int], None] = None,
             show_progress_bar: bool = True
             ):
         """
@@ -144,10 +141,6 @@ class CrossEncoder():
         """
         train_dataloader.collate_fn = self.smart_batching_collate
 
-        if use_amp:
-            from torch.cuda.amp import autocast
-            scaler = torch.cuda.amp.GradScaler()
-
         self.model.to(self._target_device)
 
         if output_path is not None:
@@ -176,50 +169,29 @@ class CrossEncoder():
 
         skip_scheduler = False
         train_loss_list = []
-        if val_dataloader is not None:
-            self.model.eval()
-            acc = self.val_evaluation(val_dataloader, MulticlassPrecision(num_classes=2))
-            print(f'init model accuracy is {acc.item()}')
-            self.model.zero_grad()
-            self.model.train()
+        # if val_dataloader is not None:
+        #     self.model.eval()
+        #     acc = self.val_evaluation(val_dataloader, MulticlassPrecision(num_classes=2))
+        #     print(f'init model accuracy is {acc.item()}')
+        #     self.model.zero_grad()
+        #     self.model.train()
         for epoch in trange(epochs, desc="Epoch", disable=not show_progress_bar):
             training_steps = 0
             self.model.zero_grad()
             self.model.train()
 
             for features, labels in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
-                if use_amp:
-                    with autocast():
-                        model_predictions = self.model(**features, return_dict=True)
-                        logits = activation_fct(model_predictions.logits)
-                        if self.config.num_labels == 1:
-                            logits = logits.view(-1)
-                        loss_value = loss_fct(logits, labels)
-
-                    scale_before_step = scaler.get_scale()
-                    scaler.scale(loss_value).backward()
-                    scaler.unscale_(optimizer)
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
-                    scaler.step(optimizer)
-                    scaler.update()
-
-                    skip_scheduler = scaler.get_scale() != scale_before_step
-                else:
-                    model_predictions = self.model(**features, return_dict=True)
-                    logits = activation_fct(model_predictions.logits)
-                    if self.config.num_labels == 1:
-                        logits = logits.view(-1)
-                    loss_value = loss_fct(logits, labels)
-                    loss_value.backward()
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
-                    optimizer.step()
-
+                model_predictions = self.model(**features, return_dict=True)
+                logits = activation_fct(model_predictions.logits)
+                if self.config.num_labels == 1:
+                    logits = logits.view(-1)
+                loss_value = loss_fct(logits, labels)
+                loss_value.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
+                optimizer.step()
                 optimizer.zero_grad()
-
                 if not skip_scheduler:
                     scheduler.step()
-
-                training_steps += 1
 
             if val_dataloader is not None:
                 self.model.eval()
@@ -240,7 +212,6 @@ class CrossEncoder():
         with torch.no_grad():
           for feature, label in val_dataloader:
               proba = self.model(**feature, return_dict=True)
-              #print(proba, label)
               metrics.update(proba.logits, label)
         return metrics.compute()
 

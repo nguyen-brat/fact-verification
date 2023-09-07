@@ -9,6 +9,7 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm, trange
 from sentence_transformers import SentenceTransformer
+from torcheval.metrics import MulticlassPrecision
 from accelerate import Accelerator
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,6 @@ class DPRTrainer:
             ctx_model,
             device=None,
     ):
-        self.accelerator = Accelerator()
         if device is None:
             self.device = self.accelerator.device
             logger.info("Use pytorch device: {}".format(self.device))
@@ -28,6 +28,7 @@ class DPRTrainer:
         
     def fit(self,
             train_dataloader: DataLoader,
+            val_dataloader:DataLoader,
             epochs: int = 1,
             scheduler: str = 'WarmupLinear',
             warmup_steps: int = 10000,
@@ -59,15 +60,15 @@ class DPRTrainer:
             scheduler = SentenceTransformer._get_scheduler(optimizer, scheduler=scheduler, warmup_steps=warmup_steps, t_total=num_train_steps)
 
         skip_scheduler = False
-        self.model, optimizer, train_dataloader = self.accelerator.prepare(self.model, optimizer, train_dataloader)
+        train_loss_list = []
         for epoch in trange(epochs, desc="Epoch", disable=not show_progress_bar):
             training_steps = 0
             self.model.zero_grad()
             self.model.train()
 
-            for questions, contexts in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
-                q_pooled_output, ctx_pooled_oupput = self.model(questions, contexts)
-                loss_value = BiEncoderNllLoss(q_pooled_output, ctx_pooled_oupput)
+            for batch_sample in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
+                q_pooled_output, ctx_pooled_oupput = self.model(batch_sample.questions, batch_sample.contexts)
+                loss_value = BiEncoderNllLoss.calc(q_pooled_output, ctx_pooled_oupput, batch_sample.is_positive)
                 loss_value.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
                 optimizer.step()
@@ -77,18 +78,30 @@ class DPRTrainer:
                     scheduler.step()
 
                 training_steps += 1
-            self.evaluation(metrics=None, output_path=output_path, save_best_model=save_best_model)
-        self.model.save_pretrained()
-    
-    def evaluation(
-            self,
-            metrics,
-            output_path,
-            save_best_model:bool=True,
-    ):
-        pass
+            if val_dataloader is not None:
+                self.model.eval()
+                acc = self.val_evaluation(val_dataloader, MulticlassPrecision(num_classes=2))
+                print(f'model accuracy is {acc.item()}')
+                self.model.zero_grad()
+                self.model.train()
 
-        
+            print(f'loss value is {loss_value.item()}')
+            train_loss_list.append(loss_value.item())
+        if output_path != None:
+            self.model.save_pretrained(output_path)
+        return train_loss_list
+    
+    def val_evaluation(self,
+                       val_dataloader,
+                       metrics,
+                       ):
+        self.model.eval()
+        with torch.no_grad():
+          for sample in val_dataloader:
+              q_pooled_output, ctx_pooled_oupput = self.model(sample.questions, sample.contexts)
+              scores = BiEncoderNllLoss.get_similarity_function(q_pooled_output, ctx_pooled_oupput)
+              metrics.update(scores, sample.is_positive)
+        return metrics.compute()
 
 if __name__ == "__main__":
     train_data = dataloader('data_path')
