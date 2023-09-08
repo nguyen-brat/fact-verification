@@ -8,6 +8,7 @@ from typing import Tuple, List
 import torch
 import torch.nn.functional as F
 from torch import Tensor as T
+from transformers import PreTrainedModel, PretrainedConfig
 
 BiEncoderBatch = collections.namedtuple(
     "BiENcoderInput",
@@ -61,18 +62,27 @@ class Encoder(torch.nn.Module):
         input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
         return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
     
-class BiEncoder(torch.nn.Module):
+class BiencoderConfig(PretrainedConfig):
     def __init__(
             self,
-            q_model,
-            ctx_model,
-            device,
+            q_encoder='vinai/phobert-base-v2',
+            ctx_encoder='vinai/phobert-base-v2',
+            device=None,
+            **kwargs
     ):
-        super().__init__()
+        self.q_encoder = q_encoder
+        self.ctx_encoder = ctx_encoder
         self.device = device
-        self.q_encoder = Encoder(q_model)
-        self.ctx_encoder = Encoder(ctx_model)
-        self.ctx_embed = None
+        super().__init__(**kwargs)
+
+class BiEncoder(PreTrainedModel):
+    config_class = BiencoderConfig
+    def __init__(self,config,):
+        super().__init__(config)
+        self.config = config
+        self.device = config.device
+        self.q_encoder = Encoder(config.q_encoder)
+        self.ctx_encoder = Encoder(config.q_encoder)
     
     def forward(
             self,
@@ -95,47 +105,6 @@ class BiEncoder(torch.nn.Module):
             contexts_embed = self.ctx_encoder(contexts)
             scores = dot_product_scores(question_embed, contexts_embed)[0]
         return scores
-
-    
-    @classmethod
-    def from_pretrained(
-            cls,
-            path='model/sentence_retrieval/saved_model',
-    ):
-        q_encoder_path = os.path.join(path, 'q_encoder')
-        ctx_encoder_path = os.path.join(path, 'ctx_encoder')
-        return cls(q_encoder_path, ctx_encoder_path)
-    
-    def save_pretrained(
-            self,
-            path='model/claim_verification/saved_model', # ]folder store save model
-    ):
-        q_encoder_path = os.path.join(path, 'q_encoder')
-        ctx_encoder_path = os.path.join(path, 'ctx_encoder')
-        self.q_encoder.save_pretrained(q_encoder_path)
-        self.ctx_encoder.save_pretrained(ctx_encoder_path)
-
-    def save_ctx_tensor(
-            self,
-            ctx_path:str='ctx_data_path',
-            save_path='model/sentence_retrieval/saved_model/save_ctx_tensor.pt',
-    ):
-        ctx = self.read_raw_data(ctx_path)
-        chuking = 100
-        list_tensor = []
-        print('running DPR embedding for the documents')
-        for i in tqdm(range(0, len(ctx), chuking)):
-            tensor = self.ctx_encoder.get_embedding(ctx[i:i+100])
-            list_tensor.append(tensor)
-        ctx_tensor = torch.cat(list_tensor, dim=-1)
-        torch.save(ctx_tensor, save_path)
-
-    def cal_documents_score(
-            self,
-            claim,
-            save_tensor_path='model/sentence_retrieval/saved_model/save_ctx_tensor.pt',
-    ):
-        pass
 
 class BiEncoderNllLoss(object):
     def calc(

@@ -13,16 +13,6 @@ import os
 from typing import Dict, Type, Callable, List
 import json
 
-class CustomTrainer(Trainer):
-    def compute_loss(self, model, inputs, return_outputs=False):
-        labels = inputs.get("labels")
-        # forward pass
-        outputs = model(**inputs)
-        logits = outputs.get("logits")
-        # compute custom loss (suppose one has 3 labels with different weights)
-        loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([1.0, 2.0, 3.0], device=model.device))
-        loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
-        return (loss, outputs) if return_outputs else loss
     
 class FactVerifyTrainer:
     def __init__(self,
@@ -72,12 +62,10 @@ class FactVerifyTrainer:
             self.model.zero_grad()
             self.model.train()
 
-            for features, labels in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
-                model_predictions = self.model(**features, return_dict=True)
-                logits = activation_fct(model_predictions.logits)
-                if self.config.num_labels == 1:
-                    logits = logits.view(-1)
-                loss_value = loss_fct(logits, labels)
+            for batch in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
+                model_predictions = self.model(batch)
+                logits = activation_fct(model_predictions)
+                loss_value = loss_fct(logits, batch.label)
                 loss_value.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
                 optimizer.step()
@@ -94,6 +82,7 @@ class FactVerifyTrainer:
 
             print(f'loss value is {loss_value.item()}')
             train_loss_list.append(loss_value.item())
+        self.model.save_pretrained(output_path)
         return train_loss_list
 
 

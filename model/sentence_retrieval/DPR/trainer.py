@@ -4,6 +4,7 @@ import torch
 import logging
 import os
 from typing import Dict, Type
+import argparse
 import torch
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
@@ -103,7 +104,16 @@ class DPRTrainer:
               metrics.update(scores, sample.is_positive)
         return metrics.compute()
 
-def main():
+def parse_args():
+    parser = argparse.ArgumentParser(description="Arguments for fact verification trainning")
+    parser.add_argument("--train_data_path", default='data/train.json', type=str)
+    parser.add_argument("--val_data_path", default=None, type=str)
+    parser.add_argument("--max_length", default=256, type=int)
+    parser.add_argument("--config_path", default='model/claim_verification/gear/config.json', type=str)
+    args = parser.parse_args()
+    return args
+
+def main(args):
     train_data = dataloader('data_path')
     val_data =dataloader('data_path')
     train_dataloader = DataLoader(train_data)
@@ -117,5 +127,6 @@ def main():
     )
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)
 

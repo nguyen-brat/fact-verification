@@ -144,7 +144,6 @@ class FactVerificationConfig(PretrainedConfig):
                  model='amberoad/bert-multilingual-passage-reranking-msmarco', # feature extractor model
                  device=None,
                  **kwargs):
-        super().__init__(**kwargs)
         self.nfeat = nfeat
         self.nins = nins
         self.nclass = nclass
@@ -152,6 +151,7 @@ class FactVerificationConfig(PretrainedConfig):
         self.pool = pool
         self.model = model
         self.device = device
+        super().__init__(**kwargs)
 
 class FactVerification(PreTrainedModel):
     config_class = FactVerificationConfig
@@ -171,39 +171,6 @@ class FactVerification(PreTrainedModel):
         claim_embed, fact_embed = self.feature_extractor(claim), self.feature_extractor(fact)
         output = self.gear(claim_embed, fact_embed)
         return output
-    
-    # @classmethod
-    # def from_pretrained(
-    #     cls,
-    #     path,
-    # ):
-    #     checkpoint = torch.load(path)
-    #     cls(
-    #         nfeat=checkpoint['nfeat'],
-    #         nins=checkpoint['nins'],
-    #         nclass=checkpoint['nclass'],
-    #         nlayer=checkpoint['nlayer'],
-    #         pool=checkpoint['pool'],
-    #         model=checkpoint['model'],
-    #     )
-    #     cls.feature_extractor.model = AutoModel.from_pretrained(path)
-    #     cls.gear = cls.gear.load_state_dict(checkpoint['fact_verify_state_dict'])
-    #     return cls
-
-    # def save_pretrained(
-    #         self,
-    #         path='model/claim_verification/saved_model/gear', # ]folder store save model
-    # ):
-    #     self.feature_extractor.model.save_pretrained(path, from_pt = True)
-    #     torch.save({
-    #         'nfeat':self.nfeat,
-    #         'nins':self.nins,
-    #         'nclass':self.nclass,
-    #         'nlayer':self.nlayer,
-    #         'pool':self.pool,
-    #         'model':self.model,
-    #         'fact_verify_state_dict': self.gear.state_dict(),
-    #         }, path+'/gear_checkpoint.pt')
     
 if __name__ == "__main__":
     pass
