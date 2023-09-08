@@ -2,9 +2,10 @@ from model.sentence_retrieval.DPR.model import BiEncoder
 from model.reranking.model import CrossEncoder
 from underthesea import word_tokenize
 from model.claim_verification.gear.model import FactVerification
+from model.claim_verification.gear.dataloader import FactVerificationBatch
 import torch
 import numpy as np
-from typing import List
+from typing import List, Union
 
 def softmax(x):
     """Compute softmax values for each sets of scores in x."""
@@ -14,20 +15,19 @@ def softmax(x):
 class Pipeline:
     def __init__(
             self,
-            raw_data_path='path_to_raw_data',
-            sentence_retrieval='model/sentence_retrieval/saved_model',
+            sentence_retrieval_path='model/sentence_retrieval/saved_model',
             reranking='model/reranking/saved_model',
             fact_check='model/claim_verification/saved_model'
     ):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.raw_data = self.read(raw_data_path)
-        self.dense_retrieval = BiEncoder(sentence_retrieval+'/q_encoder', sentence_retrieval+'ctx_encoder', self.device)
+        self.dense_retrieval = BiEncoder.from_pretrained(sentence_retrieval_path)
         self.reranking = CrossEncoder(reranking)
         self.fact_verification = FactVerification.from_pretrained(fact_check)
     
     def __call__(
             self,
             claim,
+            document,
     ):
         _, sparse_score = self.sparse_retrieval(claim)
         _, dense_score = self.dense_retrieval.cal_documents_score(claim=claim)
@@ -43,25 +43,19 @@ class Pipeline:
     @staticmethod
     def doc_split(documents):
         '''
-        this method split a list of long document into smaller sentences
-        '''
-        pass
-
-    def read(path):
-        '''
-        this method read raw data
+        this method split a list of long document into a sentences
         '''
         pass
 
     def fact_verify_inference(
             self,
-            query:str,
-            contexts:List[str],
+            query:Union[str, List[str]],
+            contexts:Union[List[str], List[List[str]]],
     ):
         '''
         this method performer reranking base on reranking object
         '''
-        pass
+        
 
     def rerank_inference(
             self,
@@ -84,8 +78,25 @@ class Pipeline:
         sort_index = np.argsort(np.array(reranking_score))
         reranking_answer = list(np.array(fact)[sort_index])
         reranking_answer.reverse()
-        return reranking_answer
+        return reranking_answer, reranking_score
+    
+    def get_bm25_score(
+            self,
+            claim,
+            document,
+    ):
+        pass
+
+    def get_tfifd_score(
+            self,
+            claim,
+            document,
+    ):
+        pass
 
 if __name__ == "__main__":
     pipe = Pipeline()
-    print(pipe('sau một ngày thì có thể bán được một tỷ gói mè'))
+    print(pipe(
+        claim = 'sau một ngày thì có thể bán được một tỷ gói mè',
+        document = "ông Phạm Nhật Vượng là một doanh nhân thành đạt chính vì vậy ông có thể bán được một tỷ gói mè trong 2 ngày"
+    ))

@@ -27,7 +27,7 @@ class DPRTrainer:
             logger.info("Use pytorch device: {}".format(self.device))
         self.model = BiEncoder(q_model, ctx_model)
         
-    def fit(self,
+    def __call__(self,
             train_dataloader: DataLoader,
             val_dataloader:DataLoader,
             epochs: int = 1,
@@ -109,21 +109,24 @@ def parse_args():
     parser.add_argument("--train_data_path", default='data/train.json', type=str)
     parser.add_argument("--val_data_path", default=None, type=str)
     parser.add_argument("--max_length", default=256, type=int)
-    parser.add_argument("--config_path", default='model/claim_verification/gear/config.json', type=str)
+    parser.add_argument("--epochs", default=100, type=int)
+    parser.add_argument("--q_model", default='vinai/phobert-base-v2', type=str, help="model name or path use for question encoder")
+    parser.add_argument("--ctx_encoder", default='vinai/phobert-base-v2', type=str, help="model name or path use for context encoder")
+    parser.add_argument("--output_path", default='model/sentence_retrieval/DPR/saved_model', type=str)
     args = parser.parse_args()
     return args
 
 def main(args):
-    train_data = dataloader('data_path')
-    val_data =dataloader('data_path')
+    train_data = dataloader(args.train_data_path)
+    val_data =dataloader(args.val_data_path)
     train_dataloader = DataLoader(train_data)
     val_dataloader = DataLoader(val_data)
     trainer = DPRTrainer('vinai/phobert-base-v2', 'vinai/phobert-base-v2')
-    trainer.fit(
+    trainer(
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
-        epochs=10,
-        output_path='model/sentence_retrieval/saved_model',
+        epochs=args.epochs,
+        output_path=args.output_path,
     )
 
 if __name__ == "__main__":

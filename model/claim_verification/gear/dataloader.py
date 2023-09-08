@@ -5,13 +5,18 @@ import logging
 import os
 import random
 from typing import Dict, List, Tuple
+from enum import Enum
 from transformers import AutoModelForCausalLM
-
+ 
+class relation(Enum):
+    SUPPORTED = 0
+    REFUTED = 1
+    NEI = 2
 
 class FactVerificationSample(object):
     claim: str
     context: str
-    result:int # 0, 1, 2
+    label:int # 0, 1, 2
 
 class FactVerificationBatch(object): 
     claims:List[str] # [claim1, claim2, claim3]
