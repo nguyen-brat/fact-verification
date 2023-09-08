@@ -11,7 +11,6 @@ class RerankTrainer:
             max_length = 256,
             num_labels=2
     ):
-        self.dataloader = dataloader
         self.model = CrossEncoder(model, num_labels=num_labels, max_length=max_length)
         self.warnmup_step = math.ceil(len(dataloader) * 10 * 0.1)
     
