@@ -1,4 +1,4 @@
-from transformers import Trainer, TrainingArguments
+from transformers import Trainer, TrainingArguments, AutoTokenizer, AutoModel
 import torch
 from torch import nn
 from .model import FactVerification
@@ -16,6 +16,18 @@ class CustomTrainer(Trainer):
         loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([1.0, 2.0, 3.0], device=model.device))
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
+    
+class FactVerifyTrainer:
+    def __init__(self,
+                 config,):
+        self.model = FactVerification(config=config)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.config.model)
+
+    def __call__(self,
+                 epochs
+                 ):
+        pass
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Arguments for fact verification trainning")

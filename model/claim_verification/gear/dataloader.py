@@ -33,6 +33,7 @@ class dataloader(Dataset):
         pass
     
     def create_fact_verification_input(
+            batch_size,
             samples: List[FactVerificationSample],
             shuffle: bool = True,
     )->List[FactVerificationBatch]:

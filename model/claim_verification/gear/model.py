@@ -136,12 +136,12 @@ class GEAR(nn.Module):
 class FactVerificationConfig(PretrainedConfig):
     model_type = 'factverification'
     def __init__(self,
-                 nfeat,
-                 nins,
-                 nclass,
-                 nlayer,
-                 pool,
-                 model,
+                 nfeat=768, # feature dimension
+                 nins=5, # number of evident per claim
+                 nclass=3, # number of class output (support, refuted, not enough information)
+                 nlayer=5, # number of layer
+                 pool='att', # gather type
+                 model='amberoad/bert-multilingual-passage-reranking-msmarco', # feature extractor model
                  device=None,
                  **kwargs):
         super().__init__(**kwargs)
@@ -166,7 +166,7 @@ class FactVerification(PreTrainedModel):
                          self.config.pool,
                          device=self.config.device)
     
-    def foward(self, inputs):
+    def forward(self, inputs):
         claim, fact = inputs.claim, inputs.facts
         claim_embed, fact_embed = self.feature_extractor(claim), self.feature_extractor(fact)
         output = self.gear(claim_embed, fact_embed)
