@@ -1,8 +1,7 @@
-from model.doc_retrieval.bm25 import doc_retrieval
 from model.sentence_retrieval.DPR.model import BiEncoder
 from model.reranking.model import CrossEncoder
 from underthesea import word_tokenize
-from model.claim_verification.gear.model import fact_verification
+from model.claim_verification.gear.model import FactVerification
 import torch
 import numpy as np
 from typing import List
@@ -22,10 +21,9 @@ class Pipeline:
     ):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.raw_data = self.read(raw_data_path)
-        self.sparse_retrieval = doc_retrieval(raw_data_path)
         self.dense_retrieval = BiEncoder(sentence_retrieval+'/q_encoder', sentence_retrieval+'ctx_encoder', self.device)
         self.reranking = CrossEncoder(reranking)
-        self.fact_verification = fact_verification.from_pretrained(fact_check)
+        self.fact_verification = FactVerification.from_pretrained(fact_check)
     
     def __call__(
             self,

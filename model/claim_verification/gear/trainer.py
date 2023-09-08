@@ -1,9 +1,10 @@
 from transformers import Trainer, TrainingArguments
 import torch
 from torch import nn
-from .model import fact_verification
+from .model import FactVerification
 from .dataloader import dataloader
 from torch.utils.data import DataLoader
+import argparse
 
 class CustomTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
@@ -16,8 +17,14 @@ class CustomTrainer(Trainer):
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 
-if __name__ == '__main__':
-    model = fact_verification()
+def parse_args():
+    parser = argparse.ArgumentParser(description="Arguments for fact verification trainning")
+    parser.add_argument("--max_length", default=256, type=int)
+    args = parser.parse_args()
+    return args
+
+def main(args):
+    model = FactVerification()
     train_data = dataloader('train_data_path')
     dev_data = dataloader('dev_data_path')
     train_dataloader = DataLoader(train_data)
@@ -42,3 +49,7 @@ if __name__ == '__main__':
     )
     trainer.train()
     model.save_pretrained("model/claim_verification/saved_model")
+
+if __name__ == '__main__':
+    args = parse_args()
+    main(args=args)

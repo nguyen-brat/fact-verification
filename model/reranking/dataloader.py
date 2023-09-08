@@ -19,6 +19,10 @@ class dataloader(Dataset):
     def __init__(
             self,
             data_path,
+            num_hard_negatives,
+            num_other_negatives,
+            shuffle,
+            shuffle_positives,
     ):
         self.data_path = data_path
 
@@ -30,10 +34,16 @@ class dataloader(Dataset):
     
     def create_biencoder_input(
             samples: List[CrossEncoderSample],
-            insert_title: bool,
             num_hard_negatives: int = 0,
             num_other_negatives: int = 0,
             shuffle: bool = True,
             shuffle_positives: bool = False,
-    )->CrossEncoderBatch:
+    )->CrossEncoderBatch: 
+        pass
+    
+    @staticmethod
+    def create_crossencoder_sample(path, batch_size):
+        '''
+        create crossencoder sample from file path
+        '''
         pass

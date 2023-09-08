@@ -5,6 +5,7 @@ from transformers import AutoTokenizer, AutoModel
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import BatchNorm1d, Linear, ReLU
+from transformers import PreTrainedModel, PretrainedConfig
 
 class feature_extract(nn.Module):
     def __init__(
@@ -20,12 +21,8 @@ class feature_extract(nn.Module):
             self,
             inputs,
     ):
-        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt', return_token_type_ids=True, return_attention_mask =True,)
-        model_output = self.model(
-            input_ids = encode_inputs['input_ids'].to(self.device),
-            attention_mask = encode_inputs['attention_mask'].to(self.device),
-            token_type_ids = encode_inputs['token_type_ids'].to(self.device),
-        )
+        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt',).to(self.device)
+        model_output = self.model(**encode_inputs)
         sentences_embed = self.mean_pooling(model_output, encode_inputs['attention_mask'].to(self.device))
         sentences_embed = F.normalize(sentences_embed, p=2, dim=1)
         return sentences_embed
@@ -136,26 +133,38 @@ class GEAR(nn.Module):
         inputs = F.relu(torch.mm(inputs, self.weight) + self.bias)
         return F.log_softmax(inputs, dim=1)
 
-class fact_verification(nn.Module):
-    def __init__(
-        self,
-        nfeat,
-        nins,
-        nclass,
-        nlayer,
-        pool='att',
-        model='amberoad/bert-multilingual-passage-reranking-msmarco',
-        device=None,
-    ):
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device==None else device
-        self.nfeat=nfeat,
-        self.nins=nins,
-        self.nclass=nclass,
-        self.nlayer=nlayer,
-        self.pool=pool,
-        self.model=model,
-        self.feature_extractor = feature_extract(model=model, device=self.device)
-        self.gear = GEAR(nfeat, nins, nclass, nlayer, pool, device=self.device)
+class FactVerificationConfig(PretrainedConfig):
+    model_type = 'factverification'
+    def __init__(self,
+                 nfeat,
+                 nins,
+                 nclass,
+                 nlayer,
+                 pool,
+                 model,
+                 device=None,
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.nfeat = nfeat
+        self.nins = nins
+        self.nclass = nclass
+        self.nlayer = nlayer
+        self.pool = pool
+        self.model = model
+        self.device = device
+
+class FactVerification(PreTrainedModel):
+    config_class = FactVerificationConfig
+    def __init__(self,config,):
+        super().__init__(config)
+        self.config = config
+        self.feature_extractor = feature_extract(model=self.config.model, device=self.config.device)
+        self.gear = GEAR(self.config.nfeat,
+                         self.config.nins,
+                         self.config.nclass,
+                         self.config.nlayer,
+                         self.config.pool,
+                         device=self.config.device)
     
     def foward(self, inputs):
         claim, fact = inputs.claim, inputs.facts
@@ -163,39 +172,38 @@ class fact_verification(nn.Module):
         output = self.gear(claim_embed, fact_embed)
         return output
     
-    @classmethod
-    def from_pretrained(
-        cls,
-        path,
-    ):
-        checkpoint = torch.load(path)
-        cls(
-            nfeat=checkpoint['nfeat'],
-            nins=checkpoint['nins'],
-            nclass=checkpoint['nclass'],
-            nlayer=checkpoint['nlayer'],
-            pool=checkpoint['pool'],
-            model=checkpoint['model'],
-        )
-        cls.feature_extractor.model = AutoModel.from_pretrained(path)
-        cls.gear = cls.gear.load_state_dict(checkpoint['fact_verify_state_dict'])
-        return cls
+    # @classmethod
+    # def from_pretrained(
+    #     cls,
+    #     path,
+    # ):
+    #     checkpoint = torch.load(path)
+    #     cls(
+    #         nfeat=checkpoint['nfeat'],
+    #         nins=checkpoint['nins'],
+    #         nclass=checkpoint['nclass'],
+    #         nlayer=checkpoint['nlayer'],
+    #         pool=checkpoint['pool'],
+    #         model=checkpoint['model'],
+    #     )
+    #     cls.feature_extractor.model = AutoModel.from_pretrained(path)
+    #     cls.gear = cls.gear.load_state_dict(checkpoint['fact_verify_state_dict'])
+    #     return cls
 
-    def save_pretrained(
-            self,
-            path='model/claim_verification/saved_model/gear', # ]folder store save model
-    ):
-        self.feature_extractor.model.save_pretrained(path, from_pt = True)
-        torch.save({
-            'nfeat':self.nfeat,
-            'nins':self.nins,
-            'nclass':self.nclass,
-            'nlayer':self.nlayer,
-            'pool':self.pool,
-            'model':self.model,
-            'fact_verify_state_dict': self.gear.state_dict(),
-            }, path+'/gear_checkpoint.pt')
-        
-
+    # def save_pretrained(
+    #         self,
+    #         path='model/claim_verification/saved_model/gear', # ]folder store save model
+    # ):
+    #     self.feature_extractor.model.save_pretrained(path, from_pt = True)
+    #     torch.save({
+    #         'nfeat':self.nfeat,
+    #         'nins':self.nins,
+    #         'nclass':self.nclass,
+    #         'nlayer':self.nlayer,
+    #         'pool':self.pool,
+    #         'model':self.model,
+    #         'fact_verify_state_dict': self.gear.state_dict(),
+    #         }, path+'/gear_checkpoint.pt')
+    
 if __name__ == "__main__":
     pass
