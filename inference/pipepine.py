@@ -1,11 +1,12 @@
 from model.sentence_retrieval.DPR.model import BiEncoder
 from model.reranking.model import CrossEncoder
-from underthesea import word_tokenize
+from underthesea import word_tokenize, sent_tokenize
 from model.claim_verification.gear.model import FactVerification
 from model.claim_verification.gear.dataloader import FactVerificationBatch
 import torch
 import numpy as np
-from typing import List, Union
+from typing import List, Union, Tuple
+from rank_bm25 import BM25Okapi
 
 def softmax(x):
     """Compute softmax values for each sets of scores in x."""
@@ -26,35 +27,61 @@ class Pipeline:
     
     def __call__(
             self,
-            claim,
-            document,
-    ):
-        _, sparse_score = self.sparse_retrieval(claim)
-        _, dense_score = self.dense_retrieval.cal_documents_score(claim=claim)
-        scores = torch.tensor(sparse_score) + dense_score
-        top_relvant_doc_idx = torch.argmax(scores)
-        relavent_doc = [self.raw_data[idx] for idx in top_relvant_doc_idx]
-        relavent_doc = self.doc_split(relavent_doc)
-        relavent_facts = self.rerank_inference(claim, relavent_doc)
-        result = self.fact_verify_inference(claim, relavent_facts)
-        return result
+            claim:str,
+            document:str,
+            alpha:int=0.7, # parameter to add score of sparse retrieval and dense retrieval
+            k:int=10, # top k return for rerank
+            r:int=5, # top r result return from reranking
+    )->torch.Tensor:
+        '''
+        Pipeline to check the claim
+        return tensor of probability claim relation and the most relavent sentence.
+        '''
+        sentences = self.doc_split(document=document)
+        doc_len = len(sentences)
+        k = k if doc_len > k else doc_len
+        r = r if doc_len > k else doc_len
+        sparse_score, _ = self.get_bm25_score(claim, document=document)
+        sparse_score = torch.tensor(sparse_score)
+
+        with torch.no_grad():
+            dense_score =self.dense_retrieval.predict(claim, sentences)
+            score = sparse_score*alpha + dense_score*(1-alpha)
+            sorted_idx_relavent_doc = torch.argsort(score)[:k]
+            relavent_doc = [sentences[idx] for idx in sorted_idx_relavent_doc]
+            facts = self.rerank_inference(claim=claim, facts=relavent_doc)
+            result = self.fact_verify_inference(claim=claim, facts=facts)
+        return result, facts[0]
 
 
     @staticmethod
-    def doc_split(documents):
+    def doc_split(document:str)->List[str]:
         '''
         this method split a list of long document into a sentences
         '''
-        pass
+        return sent_tokenize(document)
 
     def fact_verify_inference(
             self,
-            query:Union[str, List[str]],
-            contexts:Union[List[str], List[List[str]]],
-    ):
+            claim:Union[str, List[str]], # if claim is a string context must be a list of string
+            facts:List[str],
+            fact_per_claim:int=None
+    )->torch.Tensor:
         '''
         this method performer reranking base on reranking object
+        output is a torch tensor decribe probability of each logit relation (support, refuted, nei)
         '''
+        inp = FactVerificationBatch
+        if isinstance(claim, str):
+            inp.claims = [claim]
+        else:
+            inp.claims = claim
+        inp.facts = facts
+        inp.label = None
+        inp.fact_per_claim = fact_per_claim
+
+        logit = self.fact_verification(inp)
+        return torch.softmax(logit)
         
 
     def rerank_inference(
@@ -62,7 +89,7 @@ class Pipeline:
             claim:str,
             facts:List[str],
             tokenize:bool=False,
-    ):
+    )->Tuple(List[int], List[str]):
         '''
         perform fact checking inference
         '''
@@ -78,14 +105,26 @@ class Pipeline:
         sort_index = np.argsort(np.array(reranking_score))
         reranking_answer = list(np.array(fact)[sort_index])
         reranking_answer.reverse()
-        return reranking_answer, reranking_score
+        return reranking_score, reranking_answer
     
+    @staticmethod
     def get_bm25_score(
             self,
-            claim,
-            document,
-    ):
-        pass
+            claim:str,
+            document:List[str], # list of sentence in raw document
+            k:int=5,
+    )->Tuple(np.ndarray, List[str]):
+        '''
+        get bm25 score and return k top relavant sentence to claim
+        '''
+        tokenized_corpus = []
+        for sentence in document:
+            tokenized_corpus.append(word_tokenize(sentence, format='text'))
+        bm25 = BM25Okapi(tokenized_corpus)
+        claim_tokenize = word_tokenize(claim, format='text')
+        doc_scores = bm25.get_scores(claim_tokenize)
+        relavent_doc = bm25.get_top_n(claim_tokenize, document, n=k)
+        return doc_scores, relavent_doc
 
     def get_tfifd_score(
             self,

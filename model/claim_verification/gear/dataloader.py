@@ -22,6 +22,7 @@ class FactVerificationBatch(object):
     claims:List[str] # [claim1, claim2, claim3]
     facts:List[List[str]] # [[evidient 1, evidient2, evidien3, evident5], [enviden]]
     label:List[int]
+    fact_per_claim:int
 
 class dataloader(Dataset):
     def __init__(
