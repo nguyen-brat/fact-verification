@@ -39,18 +39,20 @@ class Encoder(torch.nn.Module):
     def __init__(
             self,
             model = 'sentence-transformers/stsb-xlm-r-multilingual',
+            max_length = 256,
             device=None,
     ):
         super(Encoder, self).__init__()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device == None else device
         self.model = AutoModel.from_pretrained(model).to(self.device)
+        self.max_length = max_length
         self.tokenizer = AutoTokenizer.from_pretrained(model)
 
     def forward(
             self,
             inputs:List[str],
     ):
-        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt').to(self.device)
+        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt', max_length=self.max_length).to(self.device)
         model_output = self.model(**encode_inputs)
         sentences_embed = self.mean_pooling(model_output, encode_inputs['attention_mask'].to(self.device))
         sentences_embed = F.normalize(sentences_embed, p=2, dim=1)
@@ -67,11 +69,13 @@ class BiencoderConfig(PretrainedConfig):
             self,
             q_encoder='vinai/phobert-base-v2',
             ctx_encoder='vinai/phobert-base-v2',
+            max_length=256,
             device=None,
             **kwargs
     ):
         self.q_encoder = q_encoder
         self.ctx_encoder = ctx_encoder
+        self.max_length = max_length
         self.device = device
         super().__init__(**kwargs)
 
@@ -81,8 +85,8 @@ class BiEncoder(PreTrainedModel):
         super().__init__(config)
         self.config = config
         self.device = config.device
-        self.q_encoder = Encoder(config.q_encoder)
-        self.ctx_encoder = Encoder(config.q_encoder)
+        self.q_encoder = Encoder(config.q_encoder, max_length=config.max_length)
+        self.ctx_encoder = Encoder(config.q_encoder, max_length=config.max_length)
     
     def forward(
             self,
