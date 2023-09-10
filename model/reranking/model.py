@@ -5,7 +5,8 @@ import os
 from typing import Dict, Type, Callable, List
 import torch
 from torch import nn
-from torcheval.metrics import MulticlassPrecision
+from torcheval.metrics import MulticlassF1Score
+from torcheval.metrics import BinaryF1Score
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm, trange
@@ -44,7 +45,10 @@ class CrossEncoder():
         if num_labels is not None:
             self.config.num_labels = num_labels
 
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_name, config=self.config, **automodel_args)
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_name,
+                                                                        config=self.config,
+                                                                        ignore_mismatched_sizes=True,
+                                                                        **automodel_args)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, **tokenizer_args)
         self.max_length = max_length
 
@@ -121,6 +125,7 @@ class CrossEncoder():
             os.makedirs(output_path, exist_ok=True)
 
         self.best_score = -9999999
+        self.best_losses = 9999999
         num_train_steps = int(len(train_dataloader) * epochs)
 
         # Prepare optimizers
@@ -143,12 +148,17 @@ class CrossEncoder():
 
         skip_scheduler = False
         train_loss_list = []
+        acc_list = []
         # if val_dataloader is not None:
         #     self.model.eval()
-        #     acc = self.val_evaluation(val_dataloader, MulticlassPrecision(num_classes=2))
+        #     acc = self.val_evaluation(val_dataloader, MulticlassF1Score(num_classes=2))
         #     print(f'init model accuracy is {acc.item()}')
         #     self.model.zero_grad()
         #     self.model.train()
+        if self.config.num_labels == 1:
+            metrics = BinaryF1Score()
+        else:
+            metrics = MulticlassF1Score(num_classes=self.config.num_labels)
         for epoch in trange(epochs, desc="Epoch", disable=not show_progress_bar):
             training_steps = 0
             self.model.zero_grad()
@@ -169,14 +179,24 @@ class CrossEncoder():
 
             if val_dataloader is not None:
                 self.model.eval()
-                acc = self.val_evaluation(val_dataloader, MulticlassPrecision(num_classes=2))
+                acc = self.val_evaluation(val_dataloader, metrics=metrics)
+                acc_list.append(acc)
+                if (acc > self.best_score) and save_best_model:
+                    self.best_score = acc
+                    self.save_pretrained(output_path)
                 print(f'model accuracy is {acc.item()}')
                 self.model.zero_grad()
                 self.model.train()
+            else:
+                if (loss_value.item() < self.best_losses) and save_best_model:
+                    self.best_losses = loss_value.item()
+                    self.save_pretrained(output_path)
 
             print(f'loss value is {loss_value.item()}')
             train_loss_list.append(loss_value.item())
-        return train_loss_list
+        if not save_best_model:
+            self.save_pretrained(output_path)
+        return train_loss_list, acc_list
 
     def val_evaluation(self,
                        val_dataloader,
@@ -184,9 +204,11 @@ class CrossEncoder():
                        ):
         val_dataloader.collate_fn = self.smart_batching_collate
         with torch.no_grad():
-          for feature, label in val_dataloader:
-              proba = self.model(**feature, return_dict=True)
-              metrics.update(proba.logits, label)
+            for feature, label in val_dataloader:
+                logits = self.model(**feature, return_dict=True).logits
+                if self.config.num_labels == 1:
+                    logits = logits.view(-1)
+                metrics.update(logits, label)
         return metrics.compute()
 
     def predict(self, sentences: List[List[str]],
