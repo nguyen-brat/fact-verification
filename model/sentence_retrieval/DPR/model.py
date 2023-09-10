@@ -40,21 +40,18 @@ class Encoder(torch.nn.Module):
             self,
             model = 'sentence-transformers/stsb-xlm-r-multilingual',
             max_length = 256,
-            device=None,
     ):
         super(Encoder, self).__init__()
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device == None else device
-        self.model = AutoModel.from_pretrained(model).to(self.device)
+        self.model = AutoModel.from_pretrained(model, ignore_mismatched_sizes=True)
         self.max_length = max_length
         self.tokenizer = AutoTokenizer.from_pretrained(model)
 
     def forward(
             self,
-            inputs:List[str],
+            inputs,
     ):
-        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt', max_length=self.max_length).to(self.device)
-        model_output = self.model(**encode_inputs)
-        sentences_embed = self.mean_pooling(model_output, encode_inputs['attention_mask'].to(self.device))
+        model_output = self.model(**inputs)
+        sentences_embed = self.mean_pooling(model_output, inputs['attention_mask'])
         sentences_embed = F.normalize(sentences_embed, p=2, dim=1)
         return sentences_embed
     
@@ -70,13 +67,11 @@ class BiencoderConfig(PretrainedConfig):
             q_encoder='vinai/phobert-base-v2',
             ctx_encoder='vinai/phobert-base-v2',
             max_length=256,
-            device=None,
             **kwargs
     ):
         self.q_encoder = q_encoder
         self.ctx_encoder = ctx_encoder
         self.max_length = max_length
-        self.device = device
         super().__init__(**kwargs)
 
 class BiEncoder(PreTrainedModel):
@@ -84,7 +79,6 @@ class BiEncoder(PreTrainedModel):
     def __init__(self,config,):
         super().__init__(config)
         self.config = config
-        self.device = config.device
         self.q_encoder = Encoder(config.q_encoder, max_length=config.max_length)
         self.ctx_encoder = Encoder(config.q_encoder, max_length=config.max_length)
     
@@ -93,8 +87,8 @@ class BiEncoder(PreTrainedModel):
             questions, # n question
             contexts, # n*m context (m context per quesion)
     ):
-        q_pooled_output = self.q_encoder(questions, self.device)
-        ctx_pooled_oupput = self.ctx_encoder(contexts, self.device)
+        q_pooled_output = self.q_encoder(questions)
+        ctx_pooled_oupput = self.ctx_encoder(contexts)
         return q_pooled_output, ctx_pooled_oupput
     
     def predict(
