@@ -72,9 +72,6 @@ class dataloader(Dataset):
               self.raw_context.append(u)
         self.claim = [self.raw_data[f'{i}']['claim'] for i in range(len(self.raw_data))]
         self.evidient = [self.raw_data[f'{i}']['evidient'] for i in range(len(self.raw_data))]
-        for i in range(len(self.evidient)):
-          if(self.evidient[i] == ''):
-            self.evidient[i] = 'vào ngày 1/10/2023 ông phạm nhật vượng tuyên bố sẽ bán được một tỷ gói mè vào cuối năm 2024'
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.batch_size = batch_size
         self.num_hard_negatives = num_hard_negatives
@@ -123,7 +120,7 @@ class dataloader(Dataset):
         return [word_tokenize(text, format='text') for text in texts]
 
     def fit_context(self):
-        self.clean_context = self.preprocess(self.context)
+        self.clean_context = self.preprocess(self.raw_context)
         if self.tokenize:
             self.clean_context = self.tokenizer(self.clean_context)
         self.bm25 = BM25Okapi([text.split() for text in self.clean_context])
@@ -197,9 +194,8 @@ class dataloader(Dataset):
                     ctx.append(u)
             
             pid = torch.zeros(len(clm), len(ctx), dtype=torch.int64)
-            pl = []
             for i in range(len(batch_claims)):
-                idx = ctx.index(self.evidient[i])
-            pid[i, idx] = 1
+                idx = ctx.index(batch_positive_context[i])
+                pid[i, idx] = 1
             dataset.append(BiEncoderBatch(clm, ctx, pid))
         return dataset
