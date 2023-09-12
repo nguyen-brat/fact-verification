@@ -10,7 +10,7 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm, trange
 from sentence_transformers import SentenceTransformer
-from torcheval.metrics import MulticlassPrecision
+from torcheval.metrics import RetrievalPrecision
 from accelerate import Accelerator, DeepSpeedPlugin
 from transformers import AutoTokenizer
 
@@ -68,6 +68,7 @@ class DPRTrainer:
         self.best_score = -99999
         self.best_loss = 99999
         num_train_steps = int(len(train_dataloader) * epochs)
+        metrics = RetrievalPrecision()
         param_optimizer = list(self.model.named_parameters())
 
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
@@ -100,7 +101,7 @@ class DPRTrainer:
 
             if val_dataloader != None:
                 self.model.eval()
-                acc = self.val_evaluation(val_dataloader, MulticlassPrecision(num_classes=2))
+                acc = self.val_evaluation(val_dataloader, metrics=metrics)
                 if save_best_model and (self.best_score < acc):
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path=output_path, accelerator=self.accelerator)
@@ -116,9 +117,8 @@ class DPRTrainer:
             train_loss_list.append(loss_value.item())
             self.accelerator.wait_for_everyone()
 
-        if output_path != None:
-            self.accelerator.wait_for_everyone()
-            self.save_during_training(output_path)
+        self.accelerator.wait_for_everyone()
+        self.save_during_training(output_path)
 
         return train_loss_list
     

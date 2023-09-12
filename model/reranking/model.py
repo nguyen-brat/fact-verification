@@ -11,8 +11,6 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm, trange
 from sentence_transformers import SentenceTransformer, util
-from sentence_transformers.evaluation import SentenceEvaluator
-from torcheval.metrics import MulticlassPrecision
 from accelerate import Accelerator, DeepSpeedPlugin
 
 logger = logging.getLogger(__name__)
@@ -156,19 +154,24 @@ class CrossEncoder():
                 acc_list.append(acc)
                 if (acc > self.best_score) and save_best_model:
                     self.best_score = acc
-                    self.save_pretrained(output_path)
-                print(f'model accuracy is {acc.item()}')
+                    self.accelerator.wait_for_everyone()
+                    self.save_during_training(output_path)
+                self.accelerator.print(f'model accuracy is {acc.item()}')
                 self.model.zero_grad()
                 self.model.train()
             else:
                 if (loss_value.item() < self.best_losses) and save_best_model:
                     self.best_losses = loss_value.item()
-                    self.save_pretrained(output_path)
+                    self.accelerator.wait_for_everyone()
+                    self.save_during_training(output_path)
 
-            print(f'loss value is {loss_value.item()}')
+            self.accelerator.print(f'loss value is {loss_value.item()}')
             train_loss_list.append(loss_value.item())
+            self.accelerator.wait_for_everyone()
+
         if not save_best_model:
-            self.save_pretrained(output_path)
+            self.accelerator.wait_for_everyone()
+            self.save_during_training(output_path)
         return train_loss_list, acc_list
 
     def val_evaluation(self,
@@ -256,3 +259,12 @@ class CrossEncoder():
         Same function as save
         """
         return self.save(path)
+    
+    def save_during_training(self, output_path, accelerator):
+        unwrapped_model = accelerator.unwrap_model(self.model)
+        unwrapped_model.save_pretrained(
+            output_path,
+            is_main_process=accelerator.is_main_process,
+            save_function=accelerator.save,
+            state_dict=accelerator.get_state_dict(self.model),
+        )

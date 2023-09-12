@@ -2,9 +2,9 @@ from transformers import Trainer, TrainingArguments, AutoTokenizer, AutoModel
 import torch
 from torch import nn
 from torch.optim import Optimizer
-from torcheval.metrics import MulticlassPrecision
+from torcheval.metrics import MulticlassF1Score
 from .model import FactVerification
-from .dataloader import dataloader
+from .dataloader import dataloader, FactVerificationBatch
 from torch.utils.data import DataLoader
 from sentence_transformers import SentenceTransformer
 import argparse
@@ -12,13 +12,33 @@ from tqdm.autonotebook import tqdm, trange
 import os
 from typing import Dict, Type, Callable, List
 import json
+from accelerate import Accelerator, DeepSpeedPlugin
 
     
 class FactVerifyTrainer:
     def __init__(self,
                  config,):
+        self.config=config
         self.model = FactVerification(config=config)
         self.tokenizer = AutoTokenizer.from_pretrained(self.config.model)
+
+        deepspeed_plugin = DeepSpeedPlugin(
+            gradient_accumulation_steps=1,
+            gradient_clipping=1,
+            offload_optimizer_device=True,
+            offload_param_device=True,
+            zero3_init_flag=True,
+            zero3_save_16bit_model=True,
+            zero_stage=True,
+        )
+        self.accelerator = Accelerator(mixed_precision='fp16', deepspeed_plugin=deepspeed_plugin)
+        self.device = self.accelerator.device
+
+    def smart_batching_collate(self, batch:FactVerificationBatch):
+        claim_tokenized = self.q_tokenizer(batch.claim, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
+        facts_tokenized = self.ctx_tokenizer(batch.facts, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
+        labels = batch.label
+        return claim_tokenized, facts_tokenized, labels
 
     def __call__(
             self,
@@ -34,13 +54,19 @@ class FactVerifyTrainer:
             weight_decay: float = 0.01,
             output_path: str = None,
             save_best_model: bool = True,
-            max_grad_norm: float = 1,
+            #max_grad_norm: float = 1,
             show_progress_bar: bool = True
     ):
+        train_dataloader.collate_fn = self.smart_batching_collate
+        if val_dataloader != None:
+            val_dataloader.collate_fn = self.smart_batching_collate
+
         if output_path is not None:
             os.makedirs(output_path, exist_ok=True)
         self.best_score = -9999999
+        self.best_loss = 999999
         num_train_steps = int(len(train_dataloader) * epochs)
+        metrics = MulticlassF1Score(num_classes=3)
         # Prepare optimizers
         param_optimizer = list(self.model.named_parameters())
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
@@ -55,10 +81,16 @@ class FactVerifyTrainer:
         if loss_fct is None:
             loss_fct = nn.CrossEntropyLoss()
 
+        if val_dataloader == None:
+            self.model, optimizer, scheduler, train_dataloader = self.accelerator.prepare(self.model, optimizer, scheduler, train_dataloader)
+        else:
+            self.model, optimizer, scheduler, train_dataloader, val_dataloader = self.accelerator.prepare(self.model, optimizer, scheduler, train_dataloader, val_dataloader)
+
+
         skip_scheduler = False
         train_loss_list = []
-        for epoch in trange(epochs, desc="Epoch", disable=not show_progress_bar):
-            training_steps = 0
+        acc_list = []
+        for _ in trange(epochs, desc="Epoch", disable=not show_progress_bar):
             self.model.zero_grad()
             self.model.train()
 
@@ -66,24 +98,47 @@ class FactVerifyTrainer:
                 model_predictions = self.model(batch)
                 logits = activation_fct(model_predictions)
                 loss_value = loss_fct(logits, batch.label)
-                loss_value.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
+                self.accelerator.backward(loss_value)
+                #torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
                 optimizer.step()
                 optimizer.zero_grad()
                 if not skip_scheduler:
                     scheduler.step()
 
-            if val_dataloader is not None:
+            if val_dataloader != None:
                 self.model.eval()
-                acc = self.val_evaluation(val_dataloader, MulticlassPrecision(num_classes=3))
-                print(f'model accuracy is {acc.item()}')
+                acc = self.val_evaluation(val_dataloader, metrics=metrics)
+                if save_best_model and (self.best_score < acc):
+                    self.accelerator.wait_for_everyone()
+                    self.save_during_training(output_path=output_path, accelerator=self.accelerator)
+                self.accelerator.print(f'model accuracy is {acc.item()}')
                 self.model.zero_grad()
                 self.model.train()
+            else:
+                if save_best_model and (self.best_loss > loss_value.item()):
+                    self.accelerator.wait_for_everyone()
+                    self.save_during_training(output_path=output_path, accelerator=self.accelerator)
 
-            print(f'loss value is {loss_value.item()}')
+            self.accelerator.print(f'loss value is {loss_value.item()}')
             train_loss_list.append(loss_value.item())
-        self.model.save_pretrained(output_path)
+            self.accelerator.wait_for_everyone()
+
+        self.accelerator.wait_for_everyone()
+        self.save_during_training(output_path)
+        
         return train_loss_list
+    
+    def val_evaluation(self,
+                       val_dataloader,
+                       metrics,
+                       ):
+        with torch.no_grad():
+            for feature, label in val_dataloader:
+                logits = self.model(**feature, return_dict=True).logits
+                if self.config.num_labels == 1:
+                    logits = logits.view(-1)
+                metrics.update(logits, label)
+        return metrics.compute()
 
 
 def parse_args():
