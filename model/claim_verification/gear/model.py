@@ -173,6 +173,7 @@ class FactVerification(PreTrainedModel):
     def forward(self, inputs):
         claim, fact = inputs.claim, inputs.facts
         claim_embed, fact_embed = self.feature_extractor(claim), self.feature_extractor(fact)
+        fact_embed = torch.reshape(fact_embed, shape=(self.config.nins,...))
         output = self.gear(claim_embed, fact_embed)
         return output
     
