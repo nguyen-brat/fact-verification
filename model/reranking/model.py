@@ -5,65 +5,41 @@ import os
 from typing import Dict, Type, Callable, List
 import torch
 from torch import nn
-from torcheval.metrics import MulticlassPrecision
+from torcheval.metrics import MulticlassF1Score
+from torcheval.metrics import BinaryF1Score
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm, trange
 from sentence_transformers import SentenceTransformer, util
-from sentence_transformers.evaluation import SentenceEvaluator
+from accelerate import Accelerator, DeepSpeedPlugin
 
 logger = logging.getLogger(__name__)
 
 class CrossEncoder():
-    def __init__(self, model_name:str, num_labels:int = None, max_length:int = None, device:str = None, tokenizer_args:Dict = {},
-                  automodel_args:Dict = {}, default_activation_function = None):
-        """
-        A CrossEncoder takes exactly two sentences / texts as input and either predicts
-        a score or label for this sentence pair. It can for example predict the similarity of the sentence pair
-        on a scale of 0 ... 1.
-
-        It does not yield a sentence embedding and does not work for individually sentences.
-
-        :param model_name: Any model name from Huggingface Models Repository that can be loaded with AutoModel. We provide several pre-trained CrossEncoder models that can be used for common tasks
-        :param num_labels: Number of labels of the classifier. If 1, the CrossEncoder is a regression model that outputs a continous score 0...1. If > 1, it output several scores that can be soft-maxed to get probability scores for the different classes.
-        :param max_length: Max length for input sequences. Longer sequences will be truncated. If None, max length of the model will be used
-        :param device: Device that should be used for the model. If None, it will use CUDA if available.
-        :param tokenizer_args: Arguments passed to AutoTokenizer
-        :param automodel_args: Arguments passed to AutoModelForSequenceClassification
-        :param default_activation_function: Callable (like nn.Sigmoid) about the default activation function that should be used on-top of model.predict(). If None. nn.Sigmoid() will be used if num_labels=1, else nn.Identity()
-        """
+    def __init__(self, model_name:str, num_labels:int, max_length:int = None, device:str = None, tokenizer_args:Dict = {},
+                  automodel_args:Dict = {},):
 
         self.config = AutoConfig.from_pretrained(model_name)
-        classifier_trained = True
-        if self.config.architectures is not None:
-            classifier_trained = any([arch.endswith('ForSequenceClassification') for arch in self.config.architectures])
+        self.config.num_labels = num_labels
 
-        if num_labels is None and not classifier_trained:
-            num_labels = 1
-
-        if num_labels is not None:
-            self.config.num_labels = num_labels
-
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_name, config=self.config, **automodel_args)
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_name,
+                                                                        config=self.config,
+                                                                        ignore_mismatched_sizes=True,
+                                                                        **automodel_args)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, **tokenizer_args)
         self.max_length = max_length
 
-        if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            logger.info("Use pytorch device: {}".format(device))
-
-        self._target_device = torch.device(device)
-
-        if default_activation_function is not None:
-            self.default_activation_function = default_activation_function
-            try:
-                self.config.sbert_ce_default_activation_function = util.fullname(self.default_activation_function)
-            except Exception as e:
-                logger.warning("Was not able to update config about the default_activation_function: {}".format(str(e)) )
-        elif hasattr(self.config, 'sbert_ce_default_activation_function') and self.config.sbert_ce_default_activation_function is not None:
-            self.default_activation_function = util.import_from_string(self.config.sbert_ce_default_activation_function)()
-        else:
-            self.default_activation_function = nn.Sigmoid() if self.config.num_labels == 1 else nn.Identity()
+        deepspeed_plugin = DeepSpeedPlugin(
+            gradient_accumulation_steps=1,
+            gradient_clipping=1,
+            offload_optimizer_device=True,
+            offload_param_device=True,
+            zero3_init_flag=True,
+            zero3_save_16bit_model=True,
+            zero_stage=True,
+        )
+        self.accelerator = Accelerator(mixed_precision='fp16', deepspeed_plugin=deepspeed_plugin)
+        self.device = self.accelerator.device
 
     def smart_batching_collate(self, batch):
         texts = [[] for _ in range(len(batch[0].texts))]
@@ -76,10 +52,10 @@ class CrossEncoder():
             labels.append(example.label)
 
         tokenized = self.tokenizer(*texts, padding=True, truncation='longest_first', return_tensors="pt", max_length=self.max_length)
-        labels = torch.tensor(labels, dtype=torch.float if self.config.num_labels == 1 else torch.long).to(self._target_device)
+        labels = torch.tensor(labels, dtype=torch.float if self.config.num_labels == 1 else torch.long)
 
         for name in tokenized:
-            tokenized[name] = tokenized[name].to(self._target_device)
+            tokenized[name] = tokenized[name]
 
         return tokenized, labels
 
@@ -90,10 +66,10 @@ class CrossEncoder():
             for idx, text in enumerate(example):
                 texts[idx].append(text.strip())
 
-        tokenized = self.tokenizer(*texts, padding=True, truncation='longest_first', return_tensors="pt", max_length=self.max_length)
+        tokenized = self.tokenizer(*texts, padding=True, truncation='longest_first', return_tensors="pt", max_length=self.max_length).to(self.device)
 
         for name in tokenized:
-            tokenized[name] = tokenized[name].to(self._target_device)
+            tokenized[name] = tokenized[name]
 
         return tokenized
 
@@ -110,17 +86,18 @@ class CrossEncoder():
             weight_decay: float = 0.01,
             output_path: str = None,
             save_best_model: bool = True,
-            max_grad_norm: float = 1,
+            #max_grad_norm: float = 1,
             show_progress_bar: bool = True
             ):
         train_dataloader.collate_fn = self.smart_batching_collate
-
-        self.model.to(self._target_device)
+        if val_dataloader != None:
+            val_dataloader.collate_fn = self.smart_batching_collate
 
         if output_path is not None:
             os.makedirs(output_path, exist_ok=True)
 
         self.best_score = -9999999
+        self.best_losses = 9999999
         num_train_steps = int(len(train_dataloader) * epochs)
 
         # Prepare optimizers
@@ -140,17 +117,21 @@ class CrossEncoder():
         if loss_fct is None:
             loss_fct = nn.BCEWithLogitsLoss() if self.config.num_labels == 1 else nn.CrossEntropyLoss()
 
+        if val_dataloader == None:
+            self.model, optimizer, scheduler, train_dataloader = self.accelerator.prepare(self.model, optimizer, scheduler, train_dataloader)
+        else:
+            self.model, optimizer, scheduler, train_dataloader, val_dataloader = self.accelerator.prepare(self.model, optimizer, scheduler, train_dataloader, val_dataloader)
 
         skip_scheduler = False
         train_loss_list = []
-        # if val_dataloader is not None:
-        #     self.model.eval()
-        #     acc = self.val_evaluation(val_dataloader, MulticlassPrecision(num_classes=2))
-        #     print(f'init model accuracy is {acc.item()}')
-        #     self.model.zero_grad()
-        #     self.model.train()
-        for epoch in trange(epochs, desc="Epoch", disable=not show_progress_bar):
-            training_steps = 0
+        acc_list = []
+
+        if self.config.num_labels == 1:
+            metrics = BinaryF1Score()
+        else:
+            metrics = MulticlassF1Score(num_classes=self.config.num_labels)
+
+        for _ in trange(epochs, desc="Epoch", disable=not show_progress_bar):
             self.model.zero_grad()
             self.model.train()
 
@@ -160,8 +141,8 @@ class CrossEncoder():
                 if self.config.num_labels == 1:
                     logits = logits.view(-1)
                 loss_value = loss_fct(logits, labels)
-                loss_value.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
+                self.accelerator.backward(loss_value)
+                #torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
                 optimizer.step()
                 optimizer.zero_grad()
                 if not skip_scheduler:
@@ -169,34 +150,50 @@ class CrossEncoder():
 
             if val_dataloader is not None:
                 self.model.eval()
-                acc = self.val_evaluation(val_dataloader, MulticlassPrecision(num_classes=2))
-                print(f'model accuracy is {acc.item()}')
+                acc = self.val_evaluation(val_dataloader, metrics=metrics)
+                acc_list.append(acc)
+                if (acc > self.best_score) and save_best_model:
+                    self.best_score = acc
+                    self.accelerator.wait_for_everyone()
+                    self.save_during_training(output_path)
+                self.accelerator.print(f'model accuracy is {acc.item()}')
                 self.model.zero_grad()
                 self.model.train()
+            else:
+                if (loss_value.item() < self.best_losses) and save_best_model:
+                    self.best_losses = loss_value.item()
+                    self.accelerator.wait_for_everyone()
+                    self.save_during_training(output_path)
 
-            print(f'loss value is {loss_value.item()}')
+            self.accelerator.print(f'loss value is {loss_value.item()}')
             train_loss_list.append(loss_value.item())
-        return train_loss_list
+            self.accelerator.wait_for_everyone()
+
+        if not save_best_model:
+            self.accelerator.wait_for_everyone()
+            self.save_during_training(output_path)
+        return train_loss_list, acc_list
 
     def val_evaluation(self,
                        val_dataloader,
                        metrics,
                        ):
-        val_dataloader.collate_fn = self.smart_batching_collate
         with torch.no_grad():
-          for feature, label in val_dataloader:
-              proba = self.model(**feature, return_dict=True)
-              metrics.update(proba.logits, label)
+            for feature, label in val_dataloader:
+                logits = self.model(**feature, return_dict=True).logits
+                if self.config.num_labels == 1:
+                    logits = logits.view(-1)
+                metrics.update(logits, label)
         return metrics.compute()
 
     def predict(self, sentences: List[List[str]],
                batch_size: int = 32,
-               show_progress_bar: bool = None,
                num_workers: int = 0,
-               activation_fct = None,
+               activation_fct = nn.Identity(),
                apply_softmax = False,
                convert_to_numpy: bool = True,
-               convert_to_tensor: bool = False
+               convert_to_tensor: bool = False,
+               device:str=None,
                ):
         """
         Performs predicts with the CrossEncoder on the given sentence pairs.
@@ -218,21 +215,14 @@ class CrossEncoder():
 
         inp_dataloader = DataLoader(sentences, batch_size=batch_size, collate_fn=self.smart_batching_collate_text_only, num_workers=num_workers, shuffle=False)
 
-        if show_progress_bar is None:
-            show_progress_bar = (logger.getEffectiveLevel() == logging.INFO or logger.getEffectiveLevel() == logging.DEBUG)
-
         iterator = inp_dataloader
-        if show_progress_bar:
-            iterator = tqdm(inp_dataloader, desc="Batches")
-
-        if activation_fct is None:
-            activation_fct = self.default_activation_function
-
+        target_device = self.device if device == None else device
         pred_scores = []
         self.model.eval()
-        self.model.to(self._target_device)
+        self.model.to(target_device)
         with torch.no_grad():
             for features in iterator:
+                features.to(target_device)
                 model_predictions = self.model(**features, return_dict=True)
                 logits = activation_fct(model_predictions.logits)
 
@@ -269,3 +259,12 @@ class CrossEncoder():
         Same function as save
         """
         return self.save(path)
+    
+    def save_during_training(self, output_path, accelerator):
+        unwrapped_model = accelerator.unwrap_model(self.model)
+        unwrapped_model.save_pretrained(
+            output_path,
+            is_main_process=accelerator.is_main_process,
+            save_function=accelerator.save,
+            state_dict=accelerator.get_state_dict(self.model),
+        )

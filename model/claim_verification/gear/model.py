@@ -11,8 +11,10 @@ class feature_extract(nn.Module):
     def __init__(
             self,
             model = 'sentence-transformers/stsb-xlm-r-multilingual',
+            max_length=256,
             device = None,
     ):
+        self.max_length = max_length
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device==None else device
         self.model = AutoModel.from_pretrained(model).to(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained(model)
@@ -21,7 +23,7 @@ class feature_extract(nn.Module):
             self,
             inputs,
     ):
-        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt',).to(self.device)
+        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt',max_length=self.max_length).to(self.device)
         model_output = self.model(**encode_inputs)
         sentences_embed = self.mean_pooling(model_output, encode_inputs['attention_mask'].to(self.device))
         sentences_embed = F.normalize(sentences_embed, p=2, dim=1)
@@ -142,6 +144,7 @@ class FactVerificationConfig(PretrainedConfig):
                  nlayer=5, # number of layer
                  pool='att', # gather type
                  model='amberoad/bert-multilingual-passage-reranking-msmarco', # feature extractor model
+                 max_length=256,
                  device=None,
                  **kwargs):
         self.nfeat = nfeat
@@ -150,6 +153,7 @@ class FactVerificationConfig(PretrainedConfig):
         self.nlayer = nlayer
         self.pool = pool
         self.model = model
+        self.max_length = max_length
         self.device = device
         super().__init__(**kwargs)
 
@@ -158,17 +162,18 @@ class FactVerification(PreTrainedModel):
     def __init__(self,config,):
         super().__init__(config)
         self.config = config
-        self.feature_extractor = feature_extract(model=self.config.model, device=self.config.device)
-        self.gear = GEAR(self.config.nfeat,
-                         self.config.nins,
-                         self.config.nclass,
-                         self.config.nlayer,
-                         self.config.pool,
-                         device=self.config.device)
+        self.feature_extractor = feature_extract(model=config.model, device=config.device, max_length=config.max_length)
+        self.gear = GEAR(nfeat=config.nfeat,
+                         nins=config.nins,
+                         nclass=config.nclass,
+                         nlayer=config.nlayer,
+                         pool=config.pool,
+                         device=config.device)
     
     def forward(self, inputs):
         claim, fact = inputs.claim, inputs.facts
         claim_embed, fact_embed = self.feature_extractor(claim), self.feature_extractor(fact)
+        fact_embed = torch.reshape(fact_embed, shape=(self.config.nins,...))
         output = self.gear(claim_embed, fact_embed)
         return output
     

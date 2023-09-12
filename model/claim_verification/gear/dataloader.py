@@ -7,6 +7,7 @@ import random
 from typing import Dict, List, Tuple
 from enum import Enum
 from transformers import AutoModelForCausalLM
+import torch
  
 class relation(Enum):
     SUPPORTED = 0
@@ -20,8 +21,8 @@ class FactVerificationSample(object):
 
 class FactVerificationBatch(object): 
     claims:List[str] # [claim1, claim2, claim3]
-    facts:List[List[str]] # [[evidient 1, evidient2, evidien3, evident5], [enviden]]
-    label:List[int]
+    facts:List[str] # [[evidient 1, evidient2, evidien3, evident5], [enviden]]
+    label:torch.Tensor # 1-d tensor for label of if claim has the same len of claims
     fact_per_claim:int
 
 class dataloader(Dataset):

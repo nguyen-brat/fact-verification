@@ -4,7 +4,7 @@ import faiss
 import os
 from tqdm import tqdm
 import collections
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 import torch
 import torch.nn.functional as F
 from torch import Tensor as T
@@ -39,20 +39,19 @@ class Encoder(torch.nn.Module):
     def __init__(
             self,
             model = 'sentence-transformers/stsb-xlm-r-multilingual',
-            device=None,
+            max_length = 256,
     ):
         super(Encoder, self).__init__()
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device == None else device
-        self.model = AutoModel.from_pretrained(model).to(self.device)
+        self.model = AutoModel.from_pretrained(model, ignore_mismatched_sizes=True)
+        self.max_length = max_length
         self.tokenizer = AutoTokenizer.from_pretrained(model)
 
     def forward(
             self,
-            inputs:List[str],
+            inputs:Dict,
     ):
-        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt').to(self.device)
-        model_output = self.model(**encode_inputs)
-        sentences_embed = self.mean_pooling(model_output, encode_inputs['attention_mask'].to(self.device))
+        model_output = self.model(**inputs)
+        sentences_embed = self.mean_pooling(model_output, inputs['attention_mask'])
         sentences_embed = F.normalize(sentences_embed, p=2, dim=1)
         return sentences_embed
     
@@ -67,12 +66,12 @@ class BiencoderConfig(PretrainedConfig):
             self,
             q_encoder='vinai/phobert-base-v2',
             ctx_encoder='vinai/phobert-base-v2',
-            device=None,
+            max_length=256,
             **kwargs
     ):
         self.q_encoder = q_encoder
         self.ctx_encoder = ctx_encoder
-        self.device = device
+        self.max_length = max_length
         super().__init__(**kwargs)
 
 class BiEncoder(PreTrainedModel):
@@ -80,17 +79,16 @@ class BiEncoder(PreTrainedModel):
     def __init__(self,config,):
         super().__init__(config)
         self.config = config
-        self.device = config.device
-        self.q_encoder = Encoder(config.q_encoder)
-        self.ctx_encoder = Encoder(config.q_encoder)
+        self.q_encoder = Encoder(config.q_encoder, max_length=config.max_length)
+        self.ctx_encoder = Encoder(config.q_encoder, max_length=config.max_length)
     
     def forward(
             self,
-            questions, # n question
-            contexts, # n*m context (m context per quesion)
+            questions:Dict, # tokenize of n question
+            contexts:Dict, # tokenize of n*m context (m context per quesion)
     ):
-        q_pooled_output = self.q_encoder(questions, self.device)
-        ctx_pooled_oupput = self.ctx_encoder(contexts, self.device)
+        q_pooled_output = self.q_encoder(questions)
+        ctx_pooled_oupput = self.ctx_encoder(contexts)
         return q_pooled_output, ctx_pooled_oupput
     
     def predict(
@@ -101,8 +99,10 @@ class BiEncoder(PreTrainedModel):
         self.q_encoder.eval()
         self.ctx_encoder.eval()
         with torch.no_grad():
-            question_embed = self.q_encoder(question)
-            contexts_embed = self.ctx_encoder(contexts)
+            question_token = self.q_encoder.tokenizer([question], return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
+            ctx_token = self.ctx_encoder.tokenizer(contexts, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
+            question_embed = self.q_encoder(question_token)
+            contexts_embed = self.ctx_encoder(ctx_token)
             scores = dot_product_scores(question_embed, contexts_embed)[0]
         return scores
 
