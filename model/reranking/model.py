@@ -88,7 +88,7 @@ class CrossEncoder():
             weight_decay: float = 0.01,
             output_path: str = None,
             save_best_model: bool = True,
-            max_grad_norm: float = 1,
+            #max_grad_norm: float = 1,
             show_progress_bar: bool = True
             ):
         train_dataloader.collate_fn = self.smart_batching_collate
@@ -119,6 +119,10 @@ class CrossEncoder():
         if loss_fct is None:
             loss_fct = nn.BCEWithLogitsLoss() if self.config.num_labels == 1 else nn.CrossEntropyLoss()
 
+        if val_dataloader == None:
+            self.model, optimizer, scheduler, train_dataloader = self.accelerator.prepare(self.model, optimizer, scheduler, train_dataloader)
+        else:
+            self.model, optimizer, scheduler, train_dataloader, val_dataloader = self.accelerator.prepare(self.model, optimizer, scheduler, train_dataloader, val_dataloader)
 
         skip_scheduler = False
         train_loss_list = []
@@ -139,8 +143,8 @@ class CrossEncoder():
                 if self.config.num_labels == 1:
                     logits = logits.view(-1)
                 loss_value = loss_fct(logits, labels)
-                loss_value.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
+                self.accelerator.backward(loss_value)
+                #torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
                 optimizer.step()
                 optimizer.zero_grad()
                 if not skip_scheduler:
@@ -171,7 +175,6 @@ class CrossEncoder():
                        val_dataloader,
                        metrics,
                        ):
-        val_dataloader.collate_fn = self.smart_batching_collate
         with torch.no_grad():
             for feature, label in val_dataloader:
                 logits = self.model(**feature, return_dict=True).logits
@@ -182,9 +185,8 @@ class CrossEncoder():
 
     def predict(self, sentences: List[List[str]],
                batch_size: int = 32,
-               show_progress_bar: bool = None,
                num_workers: int = 0,
-               activation_fct = None,
+               activation_fct = nn.Identity(),
                apply_softmax = False,
                convert_to_numpy: bool = True,
                convert_to_tensor: bool = False,
@@ -210,17 +212,14 @@ class CrossEncoder():
 
         inp_dataloader = DataLoader(sentences, batch_size=batch_size, collate_fn=self.smart_batching_collate_text_only, num_workers=num_workers, shuffle=False)
 
-        if show_progress_bar is None:
-            show_progress_bar = (logger.getEffectiveLevel() == logging.INFO or logger.getEffectiveLevel() == logging.DEBUG)
-
         iterator = inp_dataloader
-        if show_progress_bar:
-            iterator = tqdm(inp_dataloader, desc="Batches")
-
+        target_device = self.device if device == None else device
         pred_scores = []
         self.model.eval()
+        self.model.to(target_device)
         with torch.no_grad():
             for features in iterator:
+                features.to(target_device)
                 model_predictions = self.model(**features, return_dict=True)
                 logits = activation_fct(model_predictions.logits)
 
