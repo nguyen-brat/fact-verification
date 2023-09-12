@@ -1,4 +1,4 @@
-from .model import BiEncoder, BiEncoderNllLoss
+from .model import BiEncoder, BiEncoderNllLoss, BiencoderConfig
 from .dataloader import dataloader
 import torch
 import logging
@@ -12,19 +12,37 @@ from tqdm.autonotebook import tqdm, trange
 from sentence_transformers import SentenceTransformer
 from torcheval.metrics import MulticlassPrecision
 from accelerate import Accelerator, DeepSpeedPlugin
+from transformers import AutoTokenizer
 
 logger = logging.getLogger(__name__)
 
 class DPRTrainer:
     def __init__(
             self,
-            q_model,
-            ctx_model,
+            q_model_name, # str to model path or model name
+            ctx_model_name, # str to model path or model name
+            max_length = 256,
     ):
-        self.model = BiEncoder(q_model, ctx_model)
+        self.config = BiencoderConfig(q_encoder=q_model_name, ctx_encoder=ctx_model_name, max_length=max_length)
+        self.model = BiEncoder(config=self.config)
+        self.q_tokenizer = AutoTokenizer.from_pretrained(q_model_name)
+        self.ctx_tokenizer = AutoTokenizer.from_pretrained(ctx_model_name)
+        deepspeed_plugin = DeepSpeedPlugin(
+            gradient_accumulation_steps=1,
+            gradient_clipping=1,
+            offload_optimizer_device=True,
+            offload_param_device=True,
+            zero3_init_flag=True,
+            zero3_save_16bit_model=True,
+            zero_stage=True,
+        )
+        self.accelerator = Accelerator(mixed_precision='fp16', deepspeed_plugin=deepspeed_plugin)
+        self.device = self.accelerator.device
         
     def smart_batching_collate(self, batch):
-        pass
+        question_tokenized = self.q_tokenizer(batch.questions, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
+        ctx_tokenized = self.ctx_tokenizer(batch.contexts, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
+        return question_tokenized, ctx_tokenized, batch.is_positive
 
     def __call__(self,
             train_dataloader: DataLoader,
@@ -37,18 +55,15 @@ class DPRTrainer:
             weight_decay: float = 0.01,
             output_path: str = None,
             save_best_model: bool = True,
+            show_progress_bar: bool = True,
             #max_grad_norm: float = 1,
-            show_progress_bar: bool = True
             ):
-        deepspeed_plugin = DeepSpeedPlugin(
-            gradient_accumulation_steps=1,
-            offload_optimizer_device=True,
-            offload_param_device=True,
-            zero3_init_flag=True,
-            zero3_save_16bit_model=True,
-            zero_stage=True,
-        )
-        accelerator = Accelerator(mixed_precision='fp16', deepspeed_plugin=deepspeed_plugin)
+        train_dataloader.collate_fn = self.smart_batching_collate
+        if val_dataloader != None:
+            val_dataloader.collate_fn = self.smart_batching_collate
+
+        if output_path is not None:
+            os.makedirs(output_path, exist_ok=True)
         
         self.best_score = -99999
         self.best_loss = 99999
@@ -65,9 +80,10 @@ class DPRTrainer:
 
         train_loss_list = []
         if val_dataloader == None:
-            self.model, optimizer, scheduler, train_dataloader = accelerator.prepare(self.model, optimizer, scheduler, train_dataloader)
+            self.model, optimizer, scheduler, train_dataloader = self.accelerator.prepare(self.model, optimizer, scheduler, train_dataloader)
         else:
-            self.model, optimizer, scheduler, train_dataloader, val_dataloader = accelerator.prepare(self.model, optimizer, scheduler, train_dataloader, val_dataloader)
+            self.model, optimizer, scheduler, train_dataloader, val_dataloader = self.accelerator.prepare(self.model, optimizer, scheduler, train_dataloader, val_dataloader)
+        
         self.model.train()
         for _ in trange(epochs, desc="Epoch", disable=not show_progress_bar):
             self.model.zero_grad()
@@ -76,7 +92,7 @@ class DPRTrainer:
             for questions, contexts, is_positive in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
                 q_pooled_output, ctx_pooled_oupput = self.model(questions, contexts)
                 loss_value = BiEncoderNllLoss.calc(q_pooled_output, ctx_pooled_oupput, is_positive)
-                accelerator.backward(loss_value)
+                self.accelerator.backward(loss_value)
                 #torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
                 optimizer.step()
                 optimizer.zero_grad()
@@ -86,19 +102,23 @@ class DPRTrainer:
                 self.model.eval()
                 acc = self.val_evaluation(val_dataloader, MulticlassPrecision(num_classes=2))
                 if save_best_model and (self.best_score < acc):
-                    self.save_during_training(output_path=output_path, accelerator=accelerator)
-                print(f'model accuracy is {acc.item()}')
+                    self.accelerator.wait_for_everyone()
+                    self.save_during_training(output_path=output_path, accelerator=self.accelerator)
+                self.accelerator.print(f'model accuracy is {acc.item()}')
                 self.model.zero_grad()
                 self.model.train()
             else:
                 if save_best_model and (self.best_loss > loss_value.item()):
-                    self.save_during_training(output_path=output_path, accelerator=accelerator)
+                    self.accelerator.wait_for_everyone()
+                    self.save_during_training(output_path=output_path, accelerator=self.accelerator)
 
-            print(f'loss value is {loss_value.item()}')
+            self.accelerator.print(f'loss value is {loss_value.item()}')
             train_loss_list.append(loss_value.item())
+            self.accelerator.wait_for_everyone()
 
         if output_path != None:
-            self.model.save_pretrained(output_path)
+            self.accelerator.wait_for_everyone()
+            self.save_during_training(output_path)
 
         return train_loss_list
     

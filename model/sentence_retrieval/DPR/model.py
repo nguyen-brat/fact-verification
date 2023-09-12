@@ -4,7 +4,7 @@ import faiss
 import os
 from tqdm import tqdm
 import collections
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 import torch
 import torch.nn.functional as F
 from torch import Tensor as T
@@ -48,7 +48,7 @@ class Encoder(torch.nn.Module):
 
     def forward(
             self,
-            inputs,
+            inputs:Dict,
     ):
         model_output = self.model(**inputs)
         sentences_embed = self.mean_pooling(model_output, inputs['attention_mask'])
@@ -84,8 +84,8 @@ class BiEncoder(PreTrainedModel):
     
     def forward(
             self,
-            questions, # n question
-            contexts, # n*m context (m context per quesion)
+            questions:Dict, # tokenize of n question
+            contexts:Dict, # tokenize of n*m context (m context per quesion)
     ):
         q_pooled_output = self.q_encoder(questions)
         ctx_pooled_oupput = self.ctx_encoder(contexts)
@@ -99,8 +99,10 @@ class BiEncoder(PreTrainedModel):
         self.q_encoder.eval()
         self.ctx_encoder.eval()
         with torch.no_grad():
-            question_embed = self.q_encoder(question)
-            contexts_embed = self.ctx_encoder(contexts)
+            question_token = self.q_encoder.tokenizer([question], return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
+            ctx_token = self.ctx_encoder.tokenizer(contexts, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
+            question_embed = self.q_encoder(question_token)
+            contexts_embed = self.ctx_encoder(ctx_token)
             scores = dot_product_scores(question_embed, contexts_embed)[0]
         return scores
 
