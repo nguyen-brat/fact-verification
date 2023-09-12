@@ -36,7 +36,7 @@ class CrossEncoder():
             offload_param_device=True,
             zero3_init_flag=True,
             zero3_save_16bit_model=True,
-            zero_stage=True,
+            zero_stage=3,
         )
         self.accelerator = Accelerator(mixed_precision='fp16', deepspeed_plugin=deepspeed_plugin)
         self.device = self.accelerator.device
@@ -260,11 +260,11 @@ class CrossEncoder():
         """
         return self.save(path)
     
-    def save_during_training(self, output_path, accelerator):
-        unwrapped_model = accelerator.unwrap_model(self.model)
+    def save_during_training(self, output_path):
+        unwrapped_model = self.accelerator.unwrap_model(self.model)
         unwrapped_model.save_pretrained(
             output_path,
-            is_main_process=accelerator.is_main_process,
-            save_function=accelerator.save,
-            state_dict=accelerator.get_state_dict(self.model),
+            is_main_process=self.accelerator.is_main_process,
+            save_function=self.accelerator.save,
+            state_dict=self.accelerator.get_state_dict(self.model),
         )

@@ -34,7 +34,7 @@ class DPRTrainer:
             offload_param_device=True,
             zero3_init_flag=True,
             zero3_save_16bit_model=True,
-            zero_stage=True,
+            zero_stage=3,
         )
         self.accelerator = Accelerator(mixed_precision='fp16', deepspeed_plugin=deepspeed_plugin)
         self.device = self.accelerator.device
