@@ -28,7 +28,7 @@ class DPRTrainer:
         self.q_tokenizer = AutoTokenizer.from_pretrained(q_model_name)
         self.ctx_tokenizer = AutoTokenizer.from_pretrained(ctx_model_name)
         deepspeed_plugin = DeepSpeedPlugin(
-            gradient_accumulation_steps=1,
+            gradient_accumulation_steps=2,
             gradient_clipping=1,
             offload_optimizer_device=True,
             offload_param_device=True,
@@ -36,6 +36,7 @@ class DPRTrainer:
             zero3_save_16bit_model=True,
             zero_stage=3,
         )
+        DeepSpeedPlugin()
         self.accelerator = Accelerator(mixed_precision='fp16', deepspeed_plugin=deepspeed_plugin)
         self.device = self.accelerator.device
         
@@ -68,7 +69,6 @@ class DPRTrainer:
         self.best_score = -99999
         self.best_loss = 99999
         num_train_steps = int(len(train_dataloader) * epochs)
-        metrics = RetrievalPrecision()
         param_optimizer = list(self.model.named_parameters())
 
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
@@ -86,6 +86,7 @@ class DPRTrainer:
             self.model, optimizer, scheduler, train_dataloader, val_dataloader = self.accelerator.prepare(self.model, optimizer, scheduler, train_dataloader, val_dataloader)
         
         self.model.train()
+        metrics = RetrievalPrecision(k=2)
         for _ in trange(epochs, desc="Epoch", disable=not show_progress_bar):
             self.model.zero_grad()
             self.model.train()
@@ -104,21 +105,21 @@ class DPRTrainer:
                 acc = self.val_evaluation(val_dataloader, metrics=metrics)
                 if save_best_model and (self.best_score < acc):
                     self.accelerator.wait_for_everyone()
-                    self.save_during_training(output_path=output_path, accelerator=self.accelerator)
+                    self.save_during_training(output_path=output_path)
                 self.accelerator.print(f'model accuracy is {acc.item()}')
                 self.model.zero_grad()
                 self.model.train()
             else:
                 if save_best_model and (self.best_loss > loss_value.item()):
                     self.accelerator.wait_for_everyone()
-                    self.save_during_training(output_path=output_path, accelerator=self.accelerator)
+                    self.save_during_training(output_path=output_path)
 
             self.accelerator.print(f'loss value is {loss_value.item()}')
             train_loss_list.append(loss_value.item())
             self.accelerator.wait_for_everyone()
 
         self.accelerator.wait_for_everyone()
-        self.save_during_training(output_path)
+        self.save_during_training(output_path=output_path)
 
         return train_loss_list
     
@@ -134,13 +135,13 @@ class DPRTrainer:
               metrics.update(scores, sample.is_positive)
         return metrics.compute()
     
-    def save_during_training(self, output_path, accelerator):
-        unwrapped_model = accelerator.unwrap_model(self.model)
+    def save_during_training(self, output_path):
+        unwrapped_model = self.accelerator.unwrap_model(self.model)
         unwrapped_model.save_pretrained(
             output_path,
-            is_main_process=accelerator.is_main_process,
-            save_function=accelerator.save,
-            state_dict=accelerator.get_state_dict(self.model),
+            is_main_process=self.accelerator.is_main_process,
+            save_function=self.accelerator.save,
+            state_dict=self.accelerator.get_state_dict(self.model),
         )
 
 def parse_args():

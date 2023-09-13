@@ -110,14 +110,14 @@ class FactVerifyTrainer:
                 acc = self.val_evaluation(val_dataloader, metrics=metrics)
                 if save_best_model and (self.best_score < acc):
                     self.accelerator.wait_for_everyone()
-                    self.save_during_training(output_path=output_path, accelerator=self.accelerator)
+                    self.save_during_training(output_path=output_path)
                 self.accelerator.print(f'model accuracy is {acc.item()}')
                 self.model.zero_grad()
                 self.model.train()
             else:
                 if save_best_model and (self.best_loss > loss_value.item()):
                     self.accelerator.wait_for_everyone()
-                    self.save_during_training(output_path=output_path, accelerator=self.accelerator)
+                    self.save_during_training(output_path=output_path)
 
             self.accelerator.print(f'loss value is {loss_value.item()}')
             train_loss_list.append(loss_value.item())
@@ -139,6 +139,15 @@ class FactVerifyTrainer:
                     logits = logits.view(-1)
                 metrics.update(logits, label)
         return metrics.compute()
+    
+    def save_during_training(self, output_path):
+        unwrapped_model = self.accelerator.unwrap_model(self.model)
+        unwrapped_model.save_pretrained(
+            output_path,
+            is_main_process=self.accelerator.is_main_process,
+            save_function=self.accelerator.save,
+            state_dict=self.accelerator.get_state_dict(self.model),
+        )
 
 
 def parse_args():
