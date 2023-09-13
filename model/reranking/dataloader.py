@@ -6,6 +6,7 @@ import logging
 import os
 import random
 from typing import Dict, List, Tuple
+from glob import glob
 
 class CrossEncoderSample(object):
     query: str
@@ -24,7 +25,9 @@ class dataloader(Dataset):
             shuffle=True,
             shuffle_positives=True,
     ):
-        self.data_path = data_path
+        self.data_path = glob('dump_data/train' + '/*/*.json')
+        if shuffle:
+            random.shuffle(self.data_path)
 
     def __len__(self):
         pass
