@@ -34,16 +34,6 @@ BiEncoderBatch = collections.namedtuple(
     # ]
 )
 
-FormatData = collections.namedtuple(
-    "FormatData",
-    [
-        "context",
-        "claim",
-        "verdict",
-        "evidient"
-    ]
-)
-
 class dataloader(Dataset):
     def __init__(
             self,
