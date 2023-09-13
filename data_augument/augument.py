@@ -10,11 +10,14 @@ class DataAugmentation(Dataset):
     with open(data_path, 'r') as f:
             self.data = json.load(f)
 
-  def llm_paraphrase(self):
-    pass
+    @staticmethod
+    def llm_paraphrase(self):
+        pass
 
-  def back_translation(self):
-    pass
+    @staticmethod
+    def back_translation(self):
+        pass
 
-  def remove_stopwords(self):
-    pass
+    @staticmethod
+    def remove_stopwords(self):
+        pass

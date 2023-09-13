@@ -20,10 +20,10 @@ class FactVerificationSample(object):
     label:int # 0, 1, 2
 
 class FactVerificationBatch(object): 
-    claims:List[str] # [claim1, claim2, claim3]
-    facts:List[str] # [[evidient 1, evidient2, evidien3, evident5], [enviden]]
+    claims:List[str] # [claim1, claim2, claim3] # batch_size
+    facts:List[str] # [evidient 1, evidient2, evidien3, evident5, enviden]
     label:torch.Tensor # 1-d tensor for label of if claim has the same len of claims
-    fact_per_claim:int
+    fact_per_claim:int # 5
 
 class dataloader(Dataset):
     def __init__(
