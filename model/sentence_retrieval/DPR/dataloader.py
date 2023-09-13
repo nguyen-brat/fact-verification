@@ -174,12 +174,11 @@ class dataloader(Dataset):
                 for i in range(num_other_negatives):
                     ctx_0.append(self.raw_context[shuffle_other_negatives[i]])
 
-                for u in ctx_0:
-                    ctx.append(u)
-            
-            pid = torch.zeros(len(clm), len(ctx), dtype=torch.int64)
+                ctx.append(ctx_0)
+
+            pid = torch.zeros(len(clm), len(clm) * (1 + num_hard_negatives + num_other_negatives), dtype=torch.int64)
             for i in range(len(batch_claims)):
-                idx = ctx.index(batch_positive_context[i])
-                pid[i, idx] = 1
+                idx = ctx[i].index(batch_positive_context[i])
+                pid[i, i * (1 + num_hard_negatives + num_other_negatives) + idx] = 1
             dataset.append(BiEncoderBatch(clm, ctx, pid))
         return dataset
