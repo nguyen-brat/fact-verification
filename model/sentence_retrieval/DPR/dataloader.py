@@ -58,20 +58,20 @@ class dataloader(Dataset):
         self.data_path = data_path
         with open(data_path, 'r') as f:
             self.raw_data = json.load(f)
-        self.format_data = FormatData([self.raw_data[f'{i}']['context'] for i in range(len(self.raw_data))],
-                                      [self.raw_data[f'{i}']['claim'] for i in range(len(self.raw_data))],
-                                      [self.raw_data[f'{i}']['verdict'] for i in range(len(self.raw_data))],
-                                      [self.raw_data[f'{i}']['evidient'] for i in range(len(self.raw_data))])
-        self.context = [self.raw_data[f'{i}']['context'] for i in range(len(self.raw_data))]
+        self.data = pd.DataFrame(columns=["context", "claim", "verdict", "evidient"])
         raw_context = []
-        for i in range(len(self.context)):
-            raw_context.append(self.context[i].split(". "))
         self.raw_context = []
-        for i in range(len(self.context)):
-            for u in raw_context[i]:
-              self.raw_context.append(u)
-        self.claim = [self.raw_data[f'{i}']['claim'] for i in range(len(self.raw_data))]
-        self.evidient = [self.raw_data[f'{i}']['evidient'] for i in range(len(self.raw_data))]
+        for i in range(len(self.raw_data)):
+          self.data.loc[len(self.data)] = [self.raw_data[f'{i}']['context'], 
+                                           self.raw_data[f'{i}']['claim'],
+                                           self.raw_data[f'{i}']['verdict'],
+                                           self.raw_data[f'{i}']['evidient']]
+          raw_context.append(self.data['context'][i].split(". "))
+          self.raw_context.extend(raw_context[i])
+        self.context = self.data['context']
+        self.claim = self.data['claim']
+        self.verdict = self.data['verdict']
+        self.evidient = self.data['evidient']
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.batch_size = batch_size
         self.num_hard_negatives = num_hard_negatives
