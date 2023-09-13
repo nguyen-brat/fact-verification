@@ -10,6 +10,7 @@ import json
 import torch
 import re
 import numpy as np
+import pandas as pd
 from underthesea import word_tokenize
 from rank_bm25 import BM25Okapi
 
@@ -72,7 +73,7 @@ class dataloader(Dataset):
         self.batch_claim_and_context = self.create_biencoder_input(
             batch_size = batch_size,
             num_hard_negatives = num_hard_negatives,
-            num_other_negatives = num_other_negatives
+            num_other_negatives = num_other_negatives,
         )
         
 
