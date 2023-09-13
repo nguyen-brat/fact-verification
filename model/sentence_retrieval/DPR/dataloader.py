@@ -89,14 +89,7 @@ class dataloader(Dataset):
       return self.batch_size * len(self.batch_claim_and_context)
 
     def __getitem__(self, idx):
-      batch_number = idx//self.batch_size
-      idx_in_batch = idx%self.batch_size
-
-      batch_candidate = self.batch_claim_and_context[batch_number]
-      claim = batch_candidate.claims[idx_in_batch]
-      context = batch_candidate.contexts[idx_in_batch]
-      pid = batch_candidate.is_positive[idx_in_batch]
-      return claim, context, pid
+      return self.batch_claim_and_context[idx]
 
     @staticmethod
     def _preprocess(text:str)->str:
