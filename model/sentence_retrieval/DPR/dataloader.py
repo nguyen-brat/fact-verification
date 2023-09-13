@@ -65,6 +65,7 @@ class dataloader(Dataset):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.batch_size = batch_size
         self.num_hard_negatives = num_hard_negatives
+        self.num_other_negatives = num_other_negatives
         self.tokenize = tokenize
         self.fit_context()
         
