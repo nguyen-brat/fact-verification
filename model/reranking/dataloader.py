@@ -19,10 +19,10 @@ class dataloader(Dataset):
     def __init__(
             self,
             data_path,
-            num_hard_negatives,
-            num_other_negatives,
-            shuffle,
-            shuffle_positives,
+            num_hard_negatives=1,
+            num_other_negatives=7,
+            shuffle=True,
+            shuffle_positives=True,
     ):
         self.data_path = data_path
 
