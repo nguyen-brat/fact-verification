@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset
-from sentence_transformers.readers import InputExample
 import collections
 import glob
+from glob import glob
 import logging
 import os
 import random
@@ -9,10 +9,11 @@ from typing import Dict, List, Tuple
 import json
 import torch
 import re
-import numpy as np
 import pandas as pd
+import numpy as np
 from underthesea import word_tokenize
 from rank_bm25 import BM25Okapi
+from underthesea import sent_tokenize
 
 class BiEncoderSample(object): # hom nay toi di hoc -> hom_nay toi di_hoc n_gram
     query: str
