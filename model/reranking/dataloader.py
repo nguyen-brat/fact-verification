@@ -43,6 +43,7 @@ class DataloaderConfig(object):
     shuffle:bool=True,
     shuffle_positives:bool=True,
     batch_size:int=16,
+    remove_duplicate_context=False,
 
 class dataloader(Dataset):
     def __init__(
@@ -69,11 +70,11 @@ class dataloader(Dataset):
         bm25 = BM25Okapi(tokenize_batch_context)
         result = []
         for i, query in enumerate(raw_batch.query):
-            positive_id = -1
-            neg_sample = []
+            positive_id = -1 # positive_id = -1 mean there if no positive id and label is NEI
+            sample = []
             if inverse_relation[raw_batch.labels[i]] != "NEI":
                 positive_id = raw_batch.contexts.index(raw_batch.positive_passages[i])
-                neg_sample.append(InputExample(texts=[query, raw_batch.positive_passages[i]], label=1))
+                sample.append(InputExample(texts=[query, raw_batch.positive_passages[i]], label=1))
             all_negative_index = self.retrieval(query,
                                                 bm25,
                                                 positive_id, 
@@ -81,10 +82,11 @@ class dataloader(Dataset):
                                                 easy=self.config.num_other_negatives,)
             
 
-            neg_sample = list(map(lambda x, y: self.create_neg_input(x, y), [query]*all_negative_index.shape[0], np.array(raw_batch.contexts)[all_negative_index].tolist()))
+            sample += list(map(lambda x, y: self.create_neg_input(x, y), [query]*all_negative_index.shape[0], np.array(raw_batch.contexts)[all_negative_index].tolist()))
+            #print(f'sample len is{len(sample)}')
             if self.config.shuffle_positives:
-                random.shuffle(neg_sample)
-            result += neg_sample
+                random.shuffle(sample)
+            result += sample
         if self.config.shuffle:
             random.shuffle(result)
         return result
@@ -92,20 +94,26 @@ class dataloader(Dataset):
     def create_crossencoder_samples(self, idx)->CrossEncoderSamples:
         id = idx*self.config.batch_size
         samples = CrossEncoderSamples
-        raw_data = self.read_files(self.data_paths[id:(id+self.config.batch_size)])
+        raw_data = self.read_files(self.data_paths[id:id+self.config.batch_size])
+        #print(f'{id} to {id+self.config.batch_size}')
+        #print(len(raw_data))
 
         data = pd.DataFrame(raw_data)
         data['context'] = data['context'].map(self.split_doc)
         data['verdict'] = data['verdict'].map(lambda x: relation[x])
 
-        contexts_set = set()
-        for context in data['context'].to_list():
-            contexts_set.update(context)
-        samples.contexts = list(contexts_set)
+        if self.config.remove_duplicate_context:
+            contexts_set = set()
+            for context in data['context'].to_list():
+                contexts_set.update(context)
+            contexts_set = list(contexts_set)
+        else:
+            contexts_set = np.array(data['context'].to_list()).flatten().tolist()
+        
+        samples.contexts = contexts_set
         samples.query = data['claim'].to_list()
         samples.positive_passages = data['evidient'].to_list()
         samples.labels = data['verdict'].to_list()
-        
         return samples
     
     @staticmethod
