@@ -14,6 +14,7 @@ import multiprocessing
 from glob import glob
 import torch.nn.functional as F
 from rank_bm25 import BM25Okapi
+import ray
 from underthesea import sent_tokenize, word_tokenize
 
 relation = {
