@@ -46,42 +46,53 @@ class dataloader(Dataset):
             shuffle: bool = True,
             shuffle_positives: bool = False,
     ):
-        self.data_path = data_path
-        with open(data_path, 'r') as f:
-            self.raw_data = json.load(f)
-        self.data = pd.DataFrame(columns=["context", "claim", "verdict", "evidient"])
-        raw_context = []
+        self.data_paths = glob(data_path + '/*/*.json')
+        self.raw_data = self.read_files(self.data_paths)
+        self.raw_data = pd.DataFrame(self.raw_data)
+        raw_context = self.raw_data['context'].map(self.split_doc)
         self.raw_context = []
-        for i in range(len(self.raw_data)):
-          self.data.loc[len(self.data)] = [self.raw_data[f'{i}']['context'], 
-                                           self.raw_data[f'{i}']['claim'],
-                                           self.raw_data[f'{i}']['verdict'],
-                                           self.raw_data[f'{i}']['evidient']]
-          raw_context.append(self.data['context'][i].split(". "))
+        for i in range(len(raw_context)):
           self.raw_context.extend(raw_context[i])
-        self.context = self.data['context']
-        self.claim = self.data['claim']
-        self.verdict = self.data['verdict']
-        self.evidient = self.data['evidient']
+        self.raw_context = pd.Series(self.raw_context)
+
+        if(shuffle):
+          random.shuffle(self.data_paths)
+
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.batch_size = batch_size
         self.num_hard_negatives = num_hard_negatives
         self.num_other_negatives = num_other_negatives
         self.tokenize = tokenize
         self.fit_context()
-        
-        self.batch_claim_and_context = self.create_biencoder_input(
-            batch_size = batch_size,
-            num_hard_negatives = num_hard_negatives,
-            num_other_negatives = num_other_negatives,
-        )
-        
+
+    @staticmethod
+    def split_doc(graphs):
+        '''
+        because then use underthesea sent_token it still have . in the end of sentence so
+        we have to remove it
+        '''
+        output = sent_tokenize(graphs)
+        in_element = list(map(lambda x:x[:-1].strip(), output[:-1]))
+        last_element = output[-1] if (output[-1][-1] != '.') else output[-1][-1].strip()
+        return in_element + [last_element]
+
+    def read_files(self, paths):
+        results = list(map(self.read_file, paths))
+        return results
+
+    @staticmethod
+    def read_file(file):
+        with open(file, 'r') as f:
+            data = json.load(f)
+        return data
 
     def __len__(self):
-      return self.batch_size * len(self.batch_claim_and_context)
+      return len(self.data_paths) // self.batch_size
 
     def __getitem__(self, idx):
-      return self.batch_claim_and_context[idx]
+      return self.create_one_biencoder_input(
+          idx = idx
+      )
 
     @staticmethod
     def _preprocess(text:str)->str:
@@ -110,17 +121,6 @@ class dataloader(Dataset):
             self.clean_context = self.tokenizer(self.clean_context)
         self.bm25 = BM25Okapi([text.split() for text in self.clean_context])
 
-    def remove_answer_not_match_bm25_retrieval(self, question_list, positive_context_idx_list):
-        clean_question_list = []
-        clean_positive_text_idx_list = []
-        for question, contexts_idx in zip(question_list, positive_context_idx_list):
-            relevant_ctx_ids, _ = self.retrieval(question)
-            relevant_answer_idx = [answer_idx for answer_idx in contexts_idx if answer_idx in relevant_ctx_ids[:100]]
-            if len(relevant_answer_idx) > 0:
-                clean_question_list.append(question)
-                clean_positive_text_idx_list.append(relevant_answer_idx)
-        return clean_question_list, clean_positive_text_idx_list
-
     def retrieval(self,
             text:str,
             top_k:int=10,
@@ -140,46 +140,39 @@ class dataloader(Dataset):
             return [self.raw_context[idx] for idx in sort_idx[:top_k]]
         return sort_idx, doc_scores
 
-    def create_biencoder_input(
-            self,
-            batch_size: int = 32,
-            num_hard_negatives: int = 10,
-            num_other_negatives: int = 10
+    def create_one_biencoder_input(
+          self,
+          idx: int = 0
     ):
-        shuffle = self.generate_random_idx(len(self.claim))
-        claim_list = list(np.array(self.claim)[shuffle])
-        positive_context_list = list(np.array(self.evidient)[shuffle])
-        batch_claims = [claim_list[i:i+batch_size] for i in range(0, len(claim_list)//batch_size*batch_size, batch_size)]
-        batch_positive_contexts = [positive_context_list[i:i+batch_size] for i in range(0, len(positive_context_list)//batch_size*batch_size, batch_size)]
-        dataset = []
-        for batch_claim, batch_positive_context in zip(batch_claims, batch_positive_contexts):
-            clm = [claim for claim in batch_claim]
+        id = idx * self.batch_size
+        raw_data = self.read_files(self.data_paths[id:(id+self.batch_size)])
+        raw_data = pd.DataFrame(raw_data)
+        claim_list = raw_data['claim'].to_list()
+        positive_context_list = raw_data['evidient'].to_list()
 
-            ctx = []
-            for claim, positive_context in zip(batch_claim, batch_positive_context):
-                relevant_ctx_ids, _ = self.retrieval(claim)
+        ctx = []
+        for claim, positive_context in zip(claim_list, positive_context_list):
+              relevant_ctx_ids, _ = self.retrieval(claim)
 
-                # add positive context
-                ctx_0 = []
-                ctx_0.append(positive_context)
+              # add positive context
+              ctx_0 = []
+              ctx_0.append(positive_context)
 
-                # add hard negatives
-                hard_negatives = relevant_ctx_ids[:num_hard_negatives]
-                for i in range(len(hard_negatives)):
-                    ctx_0.append(self.raw_context[hard_negatives[i]])
+              # add hard negatives
+              hard_negatives = relevant_ctx_ids[:self.num_hard_negatives]
+              ctx_0.extend(self.raw_context[hard_negatives])
 
-                # add other negatives
-                other = relevant_ctx_ids[num_hard_negatives:]
-                shuffle_other = self.generate_random_idx(len(other))
-                shuffle_other_negatives = shuffle_other[:num_other_negatives]
-                for i in range(num_other_negatives):
-                    ctx_0.append(self.raw_context[shuffle_other_negatives[i]])
+              # add other negatives
+              other = relevant_ctx_ids[self.num_hard_negatives:]
+              shuffle_other = self.generate_random_idx(len(other))
+              shuffle_other_negatives = shuffle_other[:self.num_other_negatives]
+              ctx_0.extend(self.raw_context[shuffle_other_negatives])
 
-                ctx.append(ctx_0)
+              ctx.extend(ctx_0)
 
-            pid = torch.zeros(len(clm), len(clm) * (1 + num_hard_negatives + num_other_negatives), dtype=torch.int64)
-            for i in range(len(batch_claims)):
-                idx = ctx[i].index(batch_positive_context[i])
-                pid[i, i * (1 + num_hard_negatives + num_other_negatives) + idx] = 1
-            dataset.append(BiEncoderBatch(clm, ctx, pid))
-        return dataset
+        pid = torch.zeros(len(claim_list), len(ctx), dtype=torch.int64)
+        for i in range(len(claim_list)):
+            idx = ctx.index(positive_context_list[i])
+            pid[i, idx] = 1
+
+        return BiEncoderBatch(claim_list, ctx, pid)
