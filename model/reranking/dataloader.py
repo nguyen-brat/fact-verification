@@ -81,9 +81,9 @@ class dataloader(Dataset):
                                                 hard=self.config.num_hard_negatives, 
                                                 easy=self.config.num_other_negatives,)
             
-
+            #print(f'num negative sample {len(all_negative_index)}')
             sample += list(map(lambda x, y: self.create_neg_input(x, y), [query]*all_negative_index.shape[0], np.array(raw_batch.contexts)[all_negative_index].tolist()))
-            #print(f'sample len is{len(sample)}')
+            #print(f'one sample len is: {len(sample)}')
             if self.config.shuffle_positives:
                 random.shuffle(sample)
             result += sample
@@ -114,6 +114,8 @@ class dataloader(Dataset):
         samples.query = data['claim'].to_list()
         samples.positive_passages = data['evidient'].to_list()
         samples.labels = data['verdict'].to_list()
+
+        #print(len(samples.query))
         return samples
     
     @staticmethod
@@ -137,6 +139,7 @@ class dataloader(Dataset):
             positive_id:int,# id of positive sample in batch
             hard:int=5, # number of hard negative sample
             easy:int=10, # number of easy negative sample
+            easy_sample_pivot:int=20,
     )->np.ndarray:
         '''
         take query and bm25 object of batch context
@@ -144,13 +147,16 @@ class dataloader(Dataset):
         '''
         scores = bm25.get_scores(word_tokenize(query))
         sorted_index = np.argsort(scores)
-        # remove positive id in the sorted id list because this create negative id sample for training
+
         extra_neg_sample = 1 # it will add a extra easy negative sample if there is no positive answer
+        len_context = len(scores)
+        easy_sample_pivot = easy_sample_pivot if (len_context - easy_sample_pivot) > (easy + extra_neg_sample) else (len_context - easy - extra_neg_sample)
+        # remove positive id in the sorted id list because this create negative id sample for training
         if positive_id != -1:
             extra_neg_sample = 0
             ids_of_positive_id = np.where(sorted_index == positive_id)
             sorted_index = np.delete(sorted_index, ids_of_positive_id)
-        easy_sample_index = sorted_index[20:20+easy+extra_neg_sample]
+        easy_sample_index = sorted_index[easy_sample_pivot:easy_sample_pivot+easy+extra_neg_sample]
         hard_sample_index = sorted_index[:hard]
         return np.concatenate([easy_sample_index, hard_sample_index])
 
