@@ -1,5 +1,5 @@
 from .model import CrossEncoder
-from .dataloader import dataloader
+from .dataloader import dataloader, DataloaderConfig
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
@@ -44,25 +44,37 @@ class RerankTrainer:
             output_path=save_path,
         )
 
+'''
+class DataloaderConfig(object):
+    num_hard_negatives:int=1,
+    num_other_negatives:int=7,
+    shuffle:bool=True,
+    shuffle_positives:bool=True,
+    batch_size:int=16,
+    remove_duplicate_context=False,'''
+
 def main(args):
+    dataloader_config = DataloaderConfig
+    dataloader_config.num_hard_negatives = args.num_hard_negatives
+    dataloader_config.num_other_negatives = args.num_other_negatives
+    dataloader_config.shuffle = args.shuffle
+    dataloader_config.shuffle_positives = args.shuffle_positives
+    dataloader_config.batch_size = args.batch_size
+    dataloader_config.remove_duplicate_context = args.remove_duplicate_context
+
+
     train_data = dataloader(
+        config=dataloader_config,
         data_path=args.train_data_path,
-        num_hard_negatives=args.num_hard_negatives,
-        num_other_negatives=args.num_other_negatives,
-        shuffle=args.shuffle,
-        shuffle_positives=args.shuffle_positives,
     )
     val_dataloader = None
     if args.val_data_path != None:
         val_data = dataloader(
+            config=dataloader_config,
             data_path=args.val_data_path,
-            num_hard_negatives=args.num_hard_negatives,
-            num_other_negatives=args.num_other_negatives,
-            shuffle=args.shuffle,
-            shuffle_positives=args.shuffle_positives,
         )
-        val_dataloader = DataLoader(val_data, batch_size=1) # batch size is always  because it has bactched when creat data
-    train_dataloader = DataLoader(train_data, batch_size=1)
+        val_dataloader = DataLoader(val_data) # batch size is always  because it has bactched when creat data
+    train_dataloader = DataLoader(train_data)
     trainer = RerankTrainer(
         model=args.model,
         max_length=args.max_length,
@@ -105,6 +117,8 @@ def parse_args():
     parser.add_argument("--num_other_negatives", default=1, type=int)
     parser.add_argument("--shuffle", default=True, action=argparse.BooleanOptionalAction)
     parser.add_argument("--shuffle_positives", default=True, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--batch_size", default=16, type=int)
+    parser.add_argument("--remove_duplicate_context", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--epochs", default=40, type=int)
     parser.add_argument("--use_focal_loss", default=False, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
     parser.add_argument("--save_model_path", default="model/reranking/saved_model", type=str)

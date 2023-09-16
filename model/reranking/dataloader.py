@@ -10,11 +10,9 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple
 import json
-import multiprocessing
 from glob import glob
 import torch.nn.functional as F
 from rank_bm25 import BM25Okapi
-import ray
 from underthesea import sent_tokenize, word_tokenize
 
 relation = {

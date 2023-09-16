@@ -1,5 +1,6 @@
 numpy
 transformers
+sentence_transformers
 torch
 peft
 deepspeed
@@ -8,3 +9,4 @@ rank-bm25
 underthesea
 pandas
 scikit-learn
+torcheval
