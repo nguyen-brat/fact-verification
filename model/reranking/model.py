@@ -60,6 +60,7 @@ class CrossEncoder():
         return tokenized, labels
 
     def smart_batching_collate_text_only(self, batch):
+        batch = batch[0]
         texts = [[] for _ in range(len(batch[0]))]
 
         for example in batch:
