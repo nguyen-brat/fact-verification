@@ -12,7 +12,7 @@ from underthesea import sent_tokenize
 
 CKPT = 'chieunq/vietnamese-sentence-paraphase'
 tokenizer_pr = MT5Tokenizer.from_pretrained(CKPT)
-model_pr = MT5ForConditionalGeneration.from_pretrained(CKPT)
+model_pr = MT5ForConditionalGeneration.from_pretrained(CKPT).to('cuda')
 
 class DataAugmentation(Dataset):
   def __init__(self,
@@ -52,8 +52,8 @@ class DataAugmentation(Dataset):
 
   def pr(self, text):
     inputs = tokenizer_pr(text, padding='longest', max_length=64, return_tensors='pt')
-    input_ids = inputs.input_ids
-    attention_mask = inputs.attention_mask
+    input_ids = inputs.input_ids.to('cuda')
+    attention_mask = inputs.attention_mask.to('cuda')
     output = model_pr.generate(input_ids, attention_mask=attention_mask, max_length=64)
     return tokenizer_pr.decode(output[0], skip_special_tokens=True)
 
