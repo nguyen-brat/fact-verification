@@ -25,8 +25,8 @@ class FactVerifyTrainer:
         deepspeed_plugin = DeepSpeedPlugin(
             gradient_accumulation_steps=1,
             gradient_clipping=1,
-            offload_optimizer_device=True,
-            offload_param_device=True,
+            offload_optimizer_device='cpu',
+            offload_param_device='cpu',
             zero3_init_flag=True,
             zero3_save_16bit_model=True,
             zero_stage=3,

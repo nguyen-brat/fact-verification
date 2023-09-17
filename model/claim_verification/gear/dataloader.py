@@ -5,53 +5,72 @@ import logging
 import os
 import random
 from typing import Dict, List, Tuple
+import numpy as np
 from enum import Enum
-from transformers import AutoModelForCausalLM
 import torch
- 
-class relation(Enum):
-    SUPPORTED = 0
-    REFUTED = 1
-    NEI = 2
+from rank_bm25 import BM25Okapi
+from underthesea import sent_tokenize, word_tokenize
+from ...reranking.dataloader import RerankDataloader, RerankDataloaderConfig, relation, inverse_relation
 
-class FactVerificationSample(object):
-    claim: str
-    context: str
-    label:int # 0, 1, 2
 
-class FactVerificationBatch(object): 
+class CrossEncoderSamples(object):
+    query: List[str] = []
+    positive_passages: List[str] = []
+    contexts: List[str] = []
+    labels: List[int]
+
+
+class FactVerificationBatch(object):
     claims:List[str] # [claim1, claim2, claim3] # batch_size
     facts:List[str] # [evidient 1, evidient2, evidien3, evident5, enviden]
     label:torch.Tensor # 1-d tensor for label of if claim has the same len of claims
     fact_per_claim:int # 5
 
-class dataloader(Dataset):
+
+class FactVerifyDataloader(RerankDataloader):
     def __init__(
             self,
+            config:RerankDataloaderConfig,
             data_path,
     ):
-        model = AutoModelForCausalLM('bert-based-uncased')
-        self.data_path = data_path
-
-    def __len__(self):
-        pass
+        super().__init__(data_path=data_path, config=config)
 
     def __getitem__(self, idx):
-        pass
+        return self.create_fact_verification_input(idx=idx)
     
-    def create_fact_verification_input(
-            batch_size,
-            samples: List[FactVerificationSample],
-            shuffle: bool = True,
-    )->List[FactVerificationBatch]:
-        '''
-        TODO
-        '''
-        pass
-    
-    @staticmethod
-    def preprocess(path):
-        '''
-        take data path and return FactVerificationSample
-        '''
-        pass
+    def create_fact_verification_input(self, idx)->List[FactVerificationBatch]:
+        raw_batch = self.create_crossencoder_samples(idx=idx)
+        
+        batch = FactVerificationBatch
+        batch.claims = raw_batch.query
+        batch.label = torch.tensor(raw_batch.labels)
+        batch.fact_per_claim = self.config.num_hard_negatives + self.config.num_other_negatives + 1 # 1 is the positive fact
+        batch.facts = []
+
+        tokenize_batch_context = self.list_sentence_tokenize(raw_batch.contexts)
+        bm25 = BM25Okapi(tokenize_batch_context)
+        result = []
+        for i, query in enumerate(raw_batch.query):
+            positive_id = -1 # positive_id = -1 mean there if no positive id and label is NEI
+            sample = []
+            if inverse_relation[raw_batch.labels[i]] != "NEI":
+                sample.append(raw_batch.positive_passages[i])
+                positive_id = raw_batch.contexts.index(raw_batch.positive_passages[i])
+            all_negative_index = self.retrieval(query,
+                                                bm25,
+                                                positive_id,
+                                                hard=self.config.num_hard_negatives,
+                                                easy=0,)
+            sample += np.array(raw_batch.contexts)[np.array(all_negative_index)].tolist()
+            if self.config.shuffle_positives:
+                random.shuffle(sample)
+            result.append(sample)
+        if self.config.shuffle:
+            temp = list(zip(raw_batch.labels, result))
+            random.shuffle(temp)
+            label, result = zip(*temp)
+            label, result = list(label), list(result)
+            batch.label = torch.tensor(label)
+        batch.facts = np.array(result).flatten().tolist()
+
+        return batch

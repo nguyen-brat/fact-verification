@@ -140,7 +140,7 @@ class CrossEncoder():
             self.model.zero_grad()
             self.model.train()
 
-            for features, labels in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar, total=len(train_dataloader)):
+            for features, labels in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
                 model_predictions = self.model(**features, return_dict=True)
                 logits = activation_fct(model_predictions.logits)
                 if self.config.num_labels == 1:

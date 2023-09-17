@@ -1,5 +1,5 @@
 from model.reranking.model import CrossEncoder
-from model.reranking.dataloader import dataloader, DataloaderConfig
+from model.reranking.dataloader import RerankDataloader, RerankDataloaderConfig
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
@@ -19,7 +19,7 @@ class FocalLoss(nn.Module):
         return torch.mean(F_loss)
 
 def main(args):
-    dataloader_config = DataloaderConfig
+    dataloader_config = RerankDataloaderConfig
     dataloader_config.num_hard_negatives = args.num_hard_negatives
     dataloader_config.num_other_negatives = args.num_other_negatives
     dataloader_config.shuffle = args.shuffle
@@ -28,13 +28,13 @@ def main(args):
     dataloader_config.remove_duplicate_context = args.remove_duplicate_context
 
 
-    train_data = dataloader(
+    train_data = RerankDataloader(
         config=dataloader_config,
         data_path=args.train_data_path,
     )
     val_dataloader = None
     if args.val_data_path != None:
-        val_data = dataloader(
+        val_data = RerankDataloader(
             config=dataloader_config,
             data_path=args.val_data_path,
         )

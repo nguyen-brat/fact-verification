@@ -1,17 +1,13 @@
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from sentence_transformers.readers import InputExample
-import collections
 import glob
-import logging
-import os
 import random
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple
 import json
 from glob import glob
-import torch.nn.functional as F
 from rank_bm25 import BM25Okapi
 from underthesea import sent_tokenize, word_tokenize
 
@@ -35,7 +31,7 @@ class CrossEncoderSamples(object):
 
 CrossEncoderBatch = List[InputExample] # [[claim, answer], [claim, answer]]
 
-class DataloaderConfig(object):
+class RerankDataloaderConfig(object):
     num_hard_negatives:int=1,
     num_other_negatives:int=7,
     shuffle:bool=True,
@@ -43,11 +39,11 @@ class DataloaderConfig(object):
     batch_size:int=16,
     remove_duplicate_context=False,
 
-class dataloader(Dataset):
+class RerankDataloader(Dataset):
     def __init__(
             self,
             data_path,
-            config:DataloaderConfig,
+            config:RerankDataloaderConfig,
     ):
         self.config = config
         self.data_paths = glob(data_path + '/*/*.json')
@@ -93,8 +89,6 @@ class dataloader(Dataset):
         id = idx*self.config.batch_size
         samples = CrossEncoderSamples
         raw_data = self.read_files(self.data_paths[id:id+self.config.batch_size])
-        #print(f'{id} to {id+self.config.batch_size}')
-        #print(len(raw_data))
 
         data = pd.DataFrame(raw_data)
         data['context'] = data['context'].map(self.split_doc)
@@ -113,7 +107,6 @@ class dataloader(Dataset):
         samples.positive_passages = data['evidient'].to_list()
         samples.labels = data['verdict'].to_list()
 
-        #print(len(samples.query))
         return samples
 
     @staticmethod
