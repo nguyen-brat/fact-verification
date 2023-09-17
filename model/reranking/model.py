@@ -9,7 +9,7 @@ from torcheval.metrics import MulticlassF1Score
 from torcheval.metrics import BinaryF1Score
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
-from tqdm.autonotebook import tqdm, trange
+from tqdm import tqdm, trange
 from sentence_transformers import SentenceTransformer, util
 from accelerate import Accelerator, DeepSpeedPlugin
 
