@@ -11,12 +11,6 @@ from transformers import MT5Tokenizer, MT5ForConditionalGeneration
 from underthesea import sent_tokenize
 from googletrans import Translator
 
-CKPT = 'chieunq/vietnamese-sentence-paraphase'
-tokenizer_pr = MT5Tokenizer.from_pretrained(CKPT)
-model_pr = MT5ForConditionalGeneration.from_pretrained(CKPT).to('cuda')
-
-translator = Translator()
-
 class DataAugmentation(Dataset):
   def __init__(self,
                data_path,
@@ -31,6 +25,13 @@ class DataAugmentation(Dataset):
     self.raw_data = pd.DataFrame(self.raw_data)
     self.raw_context = self.raw_data['context'].map(self.split_doc)
     self.eidx = self.index_of_evidient()
+
+    CKPT = 'chieunq/vietnamese-sentence-paraphase'
+    tokenizer_pr = MT5Tokenizer.from_pretrained(CKPT)
+    model_pr = MT5ForConditionalGeneration.from_pretrained(CKPT).to('cuda')
+
+    translator = Translator()
+                 
     if(paraphrase):
       self.paraphrase = self.llm_paraphrase()
     if(back_translate):
