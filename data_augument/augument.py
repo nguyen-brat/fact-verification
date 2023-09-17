@@ -62,8 +62,8 @@ class DataAugmentation(Dataset):
     return tokenizer_pr.decode(output[0], skip_special_tokens=True)
 
   def bt(self, text):
-    en = translator.translate(text, dest='en')
-    vi = translator.translate(en.text, dest='vi')
+    en = translator.translate(text, src='vi', dest='en')
+    vi = translator.translate(en.text, src='en', dest='vi')
     return vi.text
 
   def llm_paraphrase(self):
