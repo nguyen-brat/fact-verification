@@ -60,9 +60,9 @@ class dataloader(Dataset):
 
     def __getitem__(self, idx):
         return self.create_biencoder_input(idx=idx)
-    
 
-    def create_biencoder_input(self, idx)->CrossEncoderBatch: 
+
+    def create_biencoder_input(self, idx)->CrossEncoderBatch:
         raw_batch = self.create_crossencoder_samples(idx)
         tokenize_batch_context = self.list_sentence_tokenize(raw_batch.contexts)
         bm25 = BM25Okapi(tokenize_batch_context)
@@ -75,10 +75,10 @@ class dataloader(Dataset):
                 sample.append(InputExample(texts=[query, raw_batch.positive_passages[i]], label=1))
             all_negative_index = self.retrieval(query,
                                                 bm25,
-                                                positive_id, 
-                                                hard=self.config.num_hard_negatives, 
+                                                positive_id,
+                                                hard=self.config.num_hard_negatives,
                                                 easy=self.config.num_other_negatives,)
-            
+
             #print(f'num negative sample {len(all_negative_index)}')
             sample += list(map(lambda x, y: self.create_neg_input(x, y), [query]*all_negative_index.shape[0], np.array(raw_batch.contexts)[all_negative_index].tolist()))
             #print(f'one sample len is: {len(sample)}')
@@ -107,7 +107,7 @@ class dataloader(Dataset):
             contexts_set = list(contexts_set)
         else:
             contexts_set = np.array(data['context'].to_list()).flatten().tolist()
-        
+
         samples.contexts = contexts_set
         samples.query = data['claim'].to_list()
         samples.positive_passages = data['evidient'].to_list()
@@ -115,7 +115,7 @@ class dataloader(Dataset):
 
         #print(len(samples.query))
         return samples
-    
+
     @staticmethod
     def create_neg_input(query, context):
         return InputExample(texts=[query, context], label=0)
@@ -129,7 +129,7 @@ class dataloader(Dataset):
         in_element = list(map(lambda x:x[:-1].strip(), output[:-1]))
         last_element = output[-1] if (output[-1][-1] != '.') else output[-1][-1].strip()
         return in_element + [last_element]
-        
+
 
     def retrieval(self,
             query:str,

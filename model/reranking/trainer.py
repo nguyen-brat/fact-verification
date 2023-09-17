@@ -1,5 +1,5 @@
-from .model import CrossEncoder
-from .dataloader import dataloader, DataloaderConfig
+from model.reranking.model import CrossEncoder
+from model.reranking.dataloader import dataloader, DataloaderConfig
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
@@ -17,41 +17,6 @@ class FocalLoss(nn.Module):
         pt = torch.exp(-BCE_loss)
         F_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
         return torch.mean(F_loss)
-
-class RerankTrainer:
-    def __init__(
-            self,
-            model:str='amberoad/bert-multilingual-passage-reranking-msmarco',
-            max_length = 256,
-            num_labels=2
-    ):
-        self.model = CrossEncoder(model, num_labels=num_labels, max_length=max_length)
-        self.warnmup_step = math.ceil(len(dataloader) * 10 * 0.1)
-    
-    def __call__(self,
-                 train_dataloader,
-                 val_dataloader=None,
-                 epochs:int=10,
-                 loss = None,
-                 save_path="model/reranking/saved_model",):
-        self.model.fit(
-            train_dataloader=train_dataloader,
-            val_dataloader=val_dataloader,
-            epochs=epochs,
-            evaluation_steps=10000,
-            loss_fct=loss,
-            warmup_steps=self.warnmup_step,
-            output_path=save_path,
-        )
-
-'''
-class DataloaderConfig(object):
-    num_hard_negatives:int=1,
-    num_other_negatives:int=7,
-    shuffle:bool=True,
-    shuffle_positives:bool=True,
-    batch_size:int=16,
-    remove_duplicate_context=False,'''
 
 def main(args):
     dataloader_config = DataloaderConfig
@@ -75,11 +40,7 @@ def main(args):
         )
         val_dataloader = DataLoader(val_data) # batch size is always  because it has bactched when creat data
     train_dataloader = DataLoader(train_data)
-    trainer = RerankTrainer(
-        model=args.model,
-        max_length=args.max_length,
-        num_labels=args.num_label,
-    )
+
     loss_fct = None
     if args.use_focal_loss:
         if args.num_label==1:
@@ -95,12 +56,15 @@ def main(args):
                 dtype=torch.float32,
                 force_reload=False
             )
-    trainer(
+    model = CrossEncoder(args.model, num_labels=args.num_label, max_length=args.max_length)
+    warnmup_step = math.ceil(len(train_dataloader) * 10 * 0.1)
+    model.fit(
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
-        epochs=args.epochs,
-        loss_fct=loss_fct,
-        save_path=args.save_model_path,
+        epochs=args.epochs ,
+        loss_fct = loss_fct,
+        warmup_steps = warnmup_step,
+        output_path = args.save_model_path,
     )
 
 def parse_args():

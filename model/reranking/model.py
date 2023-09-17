@@ -32,16 +32,19 @@ class CrossEncoder():
         deepspeed_plugin = DeepSpeedPlugin(
             gradient_accumulation_steps=1,
             gradient_clipping=1,
-            offload_optimizer_device=True,
-            offload_param_device=True,
+            offload_optimizer_device='cpu',
+            offload_param_device='cpu',
             zero3_init_flag=True,
             zero3_save_16bit_model=True,
             zero_stage=3,
         )
-        self.accelerator = Accelerator(mixed_precision='fp16', deepspeed_plugin=deepspeed_plugin)
+        self.accelerator = Accelerator(mixed_precision='fp16',
+                                       deepspeed_plugin=deepspeed_plugin
+                                       )
         self.device = self.accelerator.device
 
     def smart_batching_collate(self, batch):
+        batch = batch[0]
         texts = [[] for _ in range(len(batch[0].texts))]
         labels = []
 
@@ -260,7 +263,7 @@ class CrossEncoder():
         Same function as save
         """
         return self.save(path)
-    
+
     def save_during_training(self, output_path):
         unwrapped_model = self.accelerator.unwrap_model(self.model)
         unwrapped_model.save_pretrained(
