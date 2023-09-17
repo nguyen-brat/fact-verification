@@ -135,7 +135,8 @@ class CrossEncoder():
         else:
             metrics = MulticlassF1Score(num_classes=self.config.num_labels)
 
-        for _ in trange(epochs, desc="Epoch", disable=not show_progress_bar):
+        for epoch in range(epochs):
+            print(f'epoch {epoch}/{epochs} ')
             self.model.zero_grad()
             self.model.train()
 
