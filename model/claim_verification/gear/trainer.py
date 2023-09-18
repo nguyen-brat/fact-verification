@@ -36,7 +36,7 @@ class FactVerifyTrainer:
 
     def smart_batching_collate(self, batch:FactVerificationBatch):
         batch = batch[0]
-        claim_tokenized = self.tokenizer(batch.claim, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
+        claim_tokenized = self.tokenizer(batch.claims, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
         facts_tokenized = self.tokenizer(batch.facts, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
         labels = batch.label
         return claim_tokenized, facts_tokenized, labels
@@ -92,7 +92,7 @@ class FactVerifyTrainer:
         train_loss_list = []
         acc_list = []
         for epoch in range(epochs):
-            print(f'num epoch is: {epoch}{epochs}')
+            print(f'num epoch is: {epoch}/{epochs}')
             self.model.zero_grad()
             self.model.train()
 
@@ -160,7 +160,7 @@ class FactVerifyTrainer:
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Arguments for fact verification trainning")
-    parser.add_argument("--train_data_path", default='data/train.json', type=str)
+    parser.add_argument("--train_data_path", default='dump_data/train', type=str)
     parser.add_argument("--val_data_path", default=None, type=str)
     parser.add_argument("--nfeat", default=768, type=int)
     parser.add_argument("--nins", default=5, type=int)
@@ -171,6 +171,7 @@ def parse_args():
     parser.add_argument("--max_length", default=256, type=int)
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--epochs", default=10, type=int)
+    parser.add_argument("--output_path", default='model/claim_verification/gear/saved_model', type=str)
     args = parser.parse_args()
     return args
 
@@ -204,6 +205,7 @@ def main(args):
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
         epochs=args.epochs,
+        output_path=args.output_path
     )
 
 def fact_verify_run():
