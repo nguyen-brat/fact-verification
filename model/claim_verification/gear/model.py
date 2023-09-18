@@ -30,7 +30,7 @@ class feature_extract(nn.Module):
         )
         sentences_embed = F.normalize(sentences_embed, p=2, dim=1)
         return sentences_embed
-    
+
     @staticmethod
     def mean_pooling(model_output, attention_mask):
         token_embeddings = model_output[0] #First element of model_output contains all token embeddings
@@ -163,7 +163,7 @@ class FactVerification(PreTrainedModel):
                          nclass=config.nclass,
                          nlayer=config.nlayer,
                          pool=config.pool,)
-    
+
     def forward(self, inputs):
         claim, fact = inputs.claim, inputs.facts
         claim_embed, fact_embed = self.feature_extractor(claim), self.feature_extractor(fact)

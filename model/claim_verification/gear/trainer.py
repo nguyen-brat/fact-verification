@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torch.optim import Optimizer
 from torcheval.metrics import MulticlassF1Score
-from .model import FactVerification
+from .model import FactVerification, FactVerificationConfig
 from .dataloader import dataloader, FactVerificationBatch
 from torch.utils.data import DataLoader
 from sentence_transformers import SentenceTransformer
@@ -35,6 +35,7 @@ class FactVerifyTrainer:
         self.device = self.accelerator.device
 
     def smart_batching_collate(self, batch:FactVerificationBatch):
+        batch = batch[0]
         claim_tokenized = self.q_tokenizer(batch.claim, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
         facts_tokenized = self.ctx_tokenizer(batch.facts, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
         labels = batch.label
@@ -161,18 +162,33 @@ def parse_args():
     parser.add_argument("--train_data_path", default='data/train.json', type=str)
     parser.add_argument("--val_data_path", default=None, type=str)
     parser.add_argument("--max_length", default=256, type=int)
-    parser.add_argument("--config_path", default='model/claim_verification/gear/config.json', type=str)
+    parser.add_argument("--nfeat", default=768, type=int)
+    parser.add_argument("--nins", default=5, type=int)
+    parser.add_argument("--nclass", default=3, type=int)
+    parser.add_argument("--nlayer", default=5, type=int)
+    parser.add_argument("--pool", default='att', type=str)
+    parser.add_argument("--model", default='amberoad/bert-multilingual-passage-reranking-msmarco', type=str)
+    parser.add_argument("--max_length", default=256, type=int)
     args = parser.parse_args()
     return args
 
 def main(args):
-    with open(args.config_path, 'r') as f:
-        config = json.load(f)
+    config = FactVerificationConfig(
+        nfeat=args.nfeat, # feature dimension
+        nins=args.nfeat, # number of evident per claim
+        nclass=args.nclass, # number of class output (support, refuted, not enough information)
+        nlayer=args.nlayer, # number of layer
+        pool=args.pool, # gather type
+        model=args.model, # feature extractor model
+        max_length=args.max_length,
+    )
 
     train_data = dataloader(args.train_data_path)
     val_data = dataloader(args.val_data_path)
     train_dataloader = DataLoader(train_data)
-    val_dataloader = DataLoader(val_data)
+    val_dataloader = None
+    if args.val_data_path:
+        val_dataloader = DataLoader(val_data)
 
     trainer = FactVerifyTrainer(config=config)
     trainer(
@@ -180,6 +196,10 @@ def main(args):
         val_dataloader=val_dataloader,
         epochs=10,
     )
+
+def fact_verify_run():
+    args = parse_args()
+    main(args=args)
 
 if __name__ == '__main__':
     args = parse_args()
