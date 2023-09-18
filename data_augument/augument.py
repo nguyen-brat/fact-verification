@@ -68,8 +68,9 @@ class DataAugmentation(Dataset):
 
   def llm_paraphrase(self):
     new_data = self.raw_data.copy()
-    new_data['context'] = new_data['context'].apply(self.pr)
-    new_data['claim'] = new_data['claim'].apply(self.pr)
+    with multiprocessing.Pool() as pool:
+      new_data['context'] = pool.map(self.pr, new_data['context'])
+      new_data['claim'] = pool.map(self.pr, new_data['claim'])
     raw_context = new_data['context'].map(self.split_doc)
     for i in range(self.num_data):
       if(self.raw_data['verdict'][i] != "NEI"):
@@ -79,8 +80,9 @@ class DataAugmentation(Dataset):
 
   def back_translation(self):
     new_data = self.raw_data.copy()
-    new_data['context'] = new_data['context'].apply(self.bt)
-    new_data['claim'] = new_data['claim'].apply(self.bt)
+    with multiprocessing.Pool() as pool:
+      new_data['context'] = pool.map(self.bt, new_data['context'])
+      new_data['claim'] = pool.map(self.bt, new_data['claim'])
     raw_context = new_data['context'].map(self.split_doc)
     for i in range(self.num_data):
       if(self.raw_data['verdict'][i] != "NEI"):
