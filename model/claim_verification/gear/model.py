@@ -55,7 +55,7 @@ class SelfAttentionLayer(nn.Module):
         tmp = None
         if index > -1:
             idx = torch.LongTensor([index])
-            own = torch.index_select(inputs, 1, idx)
+            own = torch.index_select(inputs, 1, idx.to(inputs.device))
             own = own.repeat(1, self.nins, 1)
             tmp = torch.cat((own, inputs), 2)
         else:
