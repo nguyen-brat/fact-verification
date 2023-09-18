@@ -36,8 +36,8 @@ class FactVerifyTrainer:
 
     def smart_batching_collate(self, batch:FactVerificationBatch):
         batch = batch[0]
-        claim_tokenized = self.q_tokenizer(batch.claim, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
-        facts_tokenized = self.ctx_tokenizer(batch.facts, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
+        claim_tokenized = self.tokenizer(batch.claim, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
+        facts_tokenized = self.tokenizer(batch.facts, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
         labels = batch.label
         return claim_tokenized, facts_tokenized, labels
 
@@ -91,14 +91,15 @@ class FactVerifyTrainer:
         skip_scheduler = False
         train_loss_list = []
         acc_list = []
-        for _ in trange(epochs, desc="Epoch", disable=not show_progress_bar):
+        for epoch in range(epochs):
+            print(f'num epoch is: {epoch}{epochs}')
             self.model.zero_grad()
             self.model.train()
 
-            for batch in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
-                model_predictions = self.model(batch)
+            for claim_tokenized, facts_tokenized, labels in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
+                model_predictions = self.model(claim_tokenized, facts_tokenized)
                 logits = activation_fct(model_predictions)
-                loss_value = loss_fct(logits, batch.label)
+                loss_value = loss_fct(logits, labels)
                 self.accelerator.backward(loss_value)
                 #torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
                 optimizer.step()
@@ -169,6 +170,7 @@ def parse_args():
     parser.add_argument("--model", default='amberoad/bert-multilingual-passage-reranking-msmarco', type=str)
     parser.add_argument("--max_length", default=256, type=int)
     parser.add_argument("--batch_size", default=16, type=int)
+    parser.add_argument("--epochs", default=10, type=int)
     args = parser.parse_args()
     return args
 
@@ -180,7 +182,6 @@ def main(args):
         nlayer=args.nlayer, # number of layer
         pool=args.pool, # gather type
         model=args.model, # feature extractor model
-        max_length=args.max_length,
     )
 
     dataloader_config = RerankDataloaderConfig
@@ -202,7 +203,7 @@ def main(args):
     trainer(
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
-        epochs=10,
+        epochs=args.epochs,
     )
 
 def fact_verify_run():

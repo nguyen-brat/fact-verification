@@ -11,22 +11,18 @@ class feature_extract(nn.Module):
     def __init__(
             self,
             model = 'sentence-transformers/stsb-xlm-r-multilingual',
-            max_length=256,
     ):
         super().__init__()
-        self.max_length = max_length
         self.model = AutoModel.from_pretrained(model)
-        self.tokenizer = AutoTokenizer.from_pretrained(model)
 
     def forward(
             self,
             inputs,
     ):
-        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt',max_length=self.max_length)
-        model_output = self.model(**encode_inputs)
+        model_output = self.model(**inputs)
         sentences_embed = self.mean_pooling(
             model_output,
-            encode_inputs['attention_mask']
+            inputs['attention_mask']
         )
         sentences_embed = F.normalize(sentences_embed, p=2, dim=1)
         return sentences_embed
@@ -157,15 +153,14 @@ class FactVerification(PreTrainedModel):
     def __init__(self,config:FactVerificationConfig,):
         super().__init__(config)
         self.config = config
-        self.feature_extractor = feature_extract(model=config.model, max_length=config.max_length)
+        self.feature_extractor = feature_extract(model=config.model)
         self.gear = GEAR(nfeat=config.nfeat,
                          nins=config.nins,
                          nclass=config.nclass,
                          nlayer=config.nlayer,
                          pool=config.pool,)
 
-    def forward(self, inputs):
-        claim, fact = inputs.claim, inputs.facts
+    def forward(self, claim, fact):
         claim_embed, fact_embed = self.feature_extractor(claim), self.feature_extractor(fact)
         fact_embed = torch.reshape(fact_embed, shape=[-1, self.config.nins] + list(fact_embed.shape[1:]))
         output = self.gear(fact_embed, claim_embed)
