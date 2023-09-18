@@ -34,11 +34,7 @@ class feature_extract(nn.Module):
         return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
 class SelfAttentionLayer(nn.Module):
-    def __init__(
-            self,
-            nhid,
-            nins,
-    ):
+    def __init__(self, nhid, nins):
         super(SelfAttentionLayer, self).__init__()
         self.nhid = nhid
         self.nins = nins
@@ -67,10 +63,10 @@ class SelfAttentionLayer(nn.Module):
 
 
 class AttentionLayer(nn.Module):
-    def __init__(self, nins, nhid,):
+    def __init__(self, nins, nhid):
         super(AttentionLayer, self).__init__()
         self.nins = nins
-        self.attentions = [SelfAttentionLayer(nhid=nhid * 2, nins=nins,) for _ in range(nins)]
+        self.attentions = [SelfAttentionLayer(nhid=nhid * 2, nins=nins) for _ in range(nins)]
 
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
@@ -83,24 +79,18 @@ class AttentionLayer(nn.Module):
 
 
 class GEAR(nn.Module):
-    def __init__(
-            self,
-            nfeat,
-            nins,
-            nclass,
-            nlayer,
-            pool,
-    ):
-        super().__init__()
+    def __init__(self, nfeat, nins, nclass, nlayer, pool):
+        super(GEAR, self).__init__()
         self.nlayer = nlayer
-        self.attentions = [AttentionLayer(nins, nfeat,) for _ in range(nlayer)]
+
+        self.attentions = [AttentionLayer(nins, nfeat) for _ in range(nlayer)]
         self.batch_norms = [BatchNorm1d(nins) for _ in range(nlayer)]
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
 
         self.pool = pool
         if pool == 'att':
-            self.aggregate = SelfAttentionLayer(nfeat * 2, nins,)
+            self.aggregate = SelfAttentionLayer(nfeat * 2, nins)
         self.index = torch.LongTensor([0])
 
         self.weight = nn.Parameter(torch.FloatTensor(nfeat, nclass))
@@ -121,12 +111,12 @@ class GEAR(nn.Module):
         if self.pool == 'mean':
             inputs = torch.mean(inputs, dim=1)
         if self.pool == 'top':
-            inputs = torch.index_select(inputs, 1, self.index).squeeze()
+            inputs = torch.index_select(inputs, 1, self.index.to(inputs.device)).squeeze()
         if self.pool == 'sum':
             inputs = inputs.sum(dim=1)
 
-        logits = F.relu(torch.mm(inputs, self.weight) + self.bias)
-        return logits
+        inputs = F.relu(torch.mm(inputs, self.weight) + self.bias)
+        return F.log_softmax(inputs, dim=1)
 
 class FactVerificationConfig(PretrainedConfig):
     model_type = 'factverification'
