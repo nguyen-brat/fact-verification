@@ -12,20 +12,21 @@ class feature_extract(nn.Module):
             self,
             model = 'sentence-transformers/stsb-xlm-r-multilingual',
             max_length=256,
-            device = None,
     ):
         self.max_length = max_length
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device==None else device
-        self.model = AutoModel.from_pretrained(model).to(self.device)
+        self.model = AutoModel.from_pretrained(model)
         self.tokenizer = AutoTokenizer.from_pretrained(model)
 
     def forward(
             self,
             inputs,
     ):
-        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt',max_length=self.max_length).to(self.device)
+        encode_inputs = self.tokenizer(inputs, padding=True, truncation=True, return_tensors='pt',max_length=self.max_length)
         model_output = self.model(**encode_inputs)
-        sentences_embed = self.mean_pooling(model_output, encode_inputs['attention_mask'].to(self.device))
+        sentences_embed = self.mean_pooling(
+            model_output,
+            encode_inputs['attention_mask']
+        )
         sentences_embed = F.normalize(sentences_embed, p=2, dim=1)
         return sentences_embed
     
@@ -40,22 +41,20 @@ class SelfAttentionLayer(nn.Module):
             self,
             nhid,
             nins,
-            device=None,
     ):
         super(SelfAttentionLayer, self).__init__()
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device==None else device
         self.nhid = nhid
         self.nins = nins
         self.project = nn.Sequential(
             Linear(nhid, 64),
             ReLU(True),
             Linear(64, 1)
-        ).to(self.device)
+        )
 
     def forward(self, inputs, index, claims):
         tmp = None
         if index > -1:
-            idx = torch.LongTensor([index]).to(self.device)
+            idx = torch.LongTensor([index])
             own = torch.index_select(inputs, 1, idx)
             own = own.repeat(1, self.nins, 1)
             tmp = torch.cat((own, inputs), 2)
@@ -71,11 +70,10 @@ class SelfAttentionLayer(nn.Module):
 
 
 class AttentionLayer(nn.Module):
-    def __init__(self, nins, nhid, device=None):
+    def __init__(self, nins, nhid,):
         super(AttentionLayer, self).__init__()
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device==None else device
         self.nins = nins
-        self.attentions = [SelfAttentionLayer(nhid=nhid * 2, nins=nins, device=self.device) for _ in range(nins)]
+        self.attentions = [SelfAttentionLayer(nhid=nhid * 2, nins=nins,) for _ in range(nins)]
 
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
@@ -95,23 +93,21 @@ class GEAR(nn.Module):
             nclass,
             nlayer,
             pool,
-            device=None,
     ):
         super(GEAR, self).__init__()
         self.nlayer = nlayer
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device==None else device
-        self.attentions = [AttentionLayer(nins, nfeat, device=self.device) for _ in range(nlayer)]
+        self.attentions = [AttentionLayer(nins, nfeat,) for _ in range(nlayer)]
         self.batch_norms = [BatchNorm1d(nins) for _ in range(nlayer)]
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
 
         self.pool = pool
         if pool == 'att':
-            self.aggregate = SelfAttentionLayer(nfeat * 2, nins, device=self.device)
-        self.index = torch.LongTensor([0]).to(self.device)
+            self.aggregate = SelfAttentionLayer(nfeat * 2, nins,)
+        self.index = torch.LongTensor([0])
 
-        self.weight = nn.Parameter(torch.FloatTensor(nfeat, nclass)).to(self.device)
-        self.bias = nn.Parameter(torch.FloatTensor(nclass)).to(self.device)
+        self.weight = nn.Parameter(torch.FloatTensor(nfeat, nclass))
+        self.bias = nn.Parameter(torch.FloatTensor(nclass))
 
         stdv = 1. / math.sqrt(self.weight.size(1))
         self.weight.data.uniform_(-stdv, stdv)
@@ -145,7 +141,6 @@ class FactVerificationConfig(PretrainedConfig):
                  pool='att', # gather type
                  model='amberoad/bert-multilingual-passage-reranking-msmarco', # feature extractor model
                  max_length=256,
-                 device=None,
                  **kwargs):
         self.nfeat = nfeat
         self.nins = nins
@@ -154,26 +149,24 @@ class FactVerificationConfig(PretrainedConfig):
         self.pool = pool
         self.model = model
         self.max_length = max_length
-        self.device = device
         super().__init__(**kwargs)
 
 class FactVerification(PreTrainedModel):
     config_class = FactVerificationConfig
-    def __init__(self,config,):
+    def __init__(self,config:FactVerificationConfig,):
         super().__init__(config)
         self.config = config
-        self.feature_extractor = feature_extract(model=config.model, device=config.device, max_length=config.max_length)
+        self.feature_extractor = feature_extract(model=config.model, max_length=config.max_length)
         self.gear = GEAR(nfeat=config.nfeat,
                          nins=config.nins,
                          nclass=config.nclass,
                          nlayer=config.nlayer,
-                         pool=config.pool,
-                         device=config.device)
+                         pool=config.pool,)
     
     def forward(self, inputs):
         claim, fact = inputs.claim, inputs.facts
         claim_embed, fact_embed = self.feature_extractor(claim), self.feature_extractor(fact)
-        fact_embed = torch.reshape(fact_embed, shape=(self.config.nins,...))
+        fact_embed = torch.reshape(fact_embed, shape=[-1, self.config.nins] + fact_embed.shape[1:])
         output = self.gear(claim_embed, fact_embed)
         return output
     

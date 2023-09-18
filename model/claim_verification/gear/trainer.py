@@ -148,6 +148,12 @@ class FactVerifyTrainer:
             save_function=self.accelerator.save,
             state_dict=self.accelerator.get_state_dict(self.model),
         )
+        self.tokenizer.save_pretrained(
+            output_path,
+            is_main_process=self.accelerator.is_main_process,
+            save_function=self.accelerator.save,
+            state_dict=self.accelerator.get_state_dict(self.model),
+        )
 
 
 def parse_args():
