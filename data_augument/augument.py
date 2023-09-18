@@ -14,10 +14,7 @@ from googletrans import Translator
 class DataAugmentation(Dataset):
   def __init__(self,
                data_path,
-               num_data,
-               paraphrase: bool = False,
-               back_translate: bool = False,
-               remove_stopwords: bool = False):
+               num_data):
     self.data_paths = glob(data_path + '/*/*.json')
     random.shuffle(self.data_paths)
     self.num_data = num_data
@@ -31,11 +28,18 @@ class DataAugmentation(Dataset):
     model_pr = MT5ForConditionalGeneration.from_pretrained(CKPT).to('cuda')
 
     translator = Translator()
-                 
+
+  def __call__(self,
+               output_path,
+               paraphrase: bool = False,
+               back_translate: bool = False,
+               remove_stopwords: bool = False):
     if(paraphrase):
       self.paraphrase = self.llm_paraphrase()
+      json_data = self.paraphrase.to_json(output_path + 'Paraphrase_augmentation_data.json')
     if(back_translate):
-      self.back_translate_data = self.back_translation()
+      self.back_translate = self.back_translation()
+      json_data = self.back_translate.to_json(output_path + 'Back_translate_augmentation_data.json')
 
   @staticmethod
   def split_doc(graphs):
