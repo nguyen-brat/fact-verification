@@ -4,7 +4,7 @@ from torch import nn
 from torch.optim import Optimizer
 from torcheval.metrics import MulticlassF1Score
 from .model import FactVerification, FactVerificationConfig
-from .dataloader import dataloader, FactVerificationBatch
+from .dataloader import FactVerifyDataloader, FactVerificationBatch, RerankDataloaderConfig
 from torch.utils.data import DataLoader
 from sentence_transformers import SentenceTransformer
 import argparse
@@ -161,7 +161,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Arguments for fact verification trainning")
     parser.add_argument("--train_data_path", default='data/train.json', type=str)
     parser.add_argument("--val_data_path", default=None, type=str)
-    parser.add_argument("--max_length", default=256, type=int)
     parser.add_argument("--nfeat", default=768, type=int)
     parser.add_argument("--nins", default=5, type=int)
     parser.add_argument("--nclass", default=3, type=int)
@@ -169,13 +168,14 @@ def parse_args():
     parser.add_argument("--pool", default='att', type=str)
     parser.add_argument("--model", default='amberoad/bert-multilingual-passage-reranking-msmarco', type=str)
     parser.add_argument("--max_length", default=256, type=int)
+    parser.add_argument("--batch_size", default=16, type=int)
     args = parser.parse_args()
     return args
 
 def main(args):
     config = FactVerificationConfig(
         nfeat=args.nfeat, # feature dimension
-        nins=args.nfeat, # number of evident per claim
+        nins=args.nins, # number of evident per claim
         nclass=args.nclass, # number of class output (support, refuted, not enough information)
         nlayer=args.nlayer, # number of layer
         pool=args.pool, # gather type
@@ -183,11 +183,19 @@ def main(args):
         max_length=args.max_length,
     )
 
-    train_data = dataloader(args.train_data_path)
-    val_data = dataloader(args.val_data_path)
+    dataloader_config = RerankDataloaderConfig
+    dataloader_config.num_hard_negatives = args.nins - 1
+    dataloader_config.num_other_negatives = 0
+    dataloader_config.shuffle = True
+    dataloader_config.shuffle_positives = True
+    dataloader_config.batch_size = args.batch_size
+    dataloader_config.remove_duplicate_context = False
+
+    train_data = FactVerifyDataloader(dataloader_config, args.train_data_path)
     train_dataloader = DataLoader(train_data)
     val_dataloader = None
     if args.val_data_path:
+        val_data = FactVerifyDataloader(dataloader_config, args.val_data_path)
         val_dataloader = DataLoader(val_data)
 
     trainer = FactVerifyTrainer(config=config)
