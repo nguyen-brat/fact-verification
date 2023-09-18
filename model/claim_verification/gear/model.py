@@ -13,6 +13,7 @@ class feature_extract(nn.Module):
             model = 'sentence-transformers/stsb-xlm-r-multilingual',
             max_length=256,
     ):
+        super().__init__()
         self.max_length = max_length
         self.model = AutoModel.from_pretrained(model)
         self.tokenizer = AutoTokenizer.from_pretrained(model)
@@ -94,7 +95,7 @@ class GEAR(nn.Module):
             nlayer,
             pool,
     ):
-        super(GEAR, self).__init__()
+        super().__init__()
         self.nlayer = nlayer
         self.attentions = [AttentionLayer(nins, nfeat,) for _ in range(nlayer)]
         self.batch_norms = [BatchNorm1d(nins) for _ in range(nlayer)]
@@ -166,8 +167,8 @@ class FactVerification(PreTrainedModel):
     def forward(self, inputs):
         claim, fact = inputs.claim, inputs.facts
         claim_embed, fact_embed = self.feature_extractor(claim), self.feature_extractor(fact)
-        fact_embed = torch.reshape(fact_embed, shape=[-1, self.config.nins] + fact_embed.shape[1:])
-        output = self.gear(claim_embed, fact_embed)
+        fact_embed = torch.reshape(fact_embed, shape=[-1, self.config.nins] + list(fact_embed.shape[1:]))
+        output = self.gear(fact_embed, claim_embed)
         return output
     
 if __name__ == "__main__":
