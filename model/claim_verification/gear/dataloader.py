@@ -66,11 +66,12 @@ class FactVerifyDataloader(RerankDataloader):
                 random.shuffle(sample)
             result.append(sample)
         if self.config.shuffle:
-            temp = list(zip(raw_batch.labels, result))
+            temp = list(zip(raw_batch.query, raw_batch.labels, result))
             random.shuffle(temp)
-            label, result = zip(*temp)
-            label, result = list(label), list(result)
+            claims, label, result = zip(*temp)
+            claims, label, result = list(claims), list(label), list(result)
             batch.label = torch.tensor(label)
+            batch.claims = claims
         batch.facts = np.array(result).flatten().tolist()
 
         return batch
