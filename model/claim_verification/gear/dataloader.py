@@ -72,6 +72,10 @@ class FactVerifyDataloader(RerankDataloader):
             claims, label, result = list(claims), list(label), list(result)
             batch.label = torch.tensor(label)
             batch.claims = claims
-        batch.facts = np.array(result).flatten().tolist()
+
+        concat_claims = np.array(claims*batch.fact_per_claim)
+        concat_claims = concat_claims.reshape(batch.fact_per_claim, self.config.batch_size)
+        concat_claims = concat_claims.transpose().flatten().tolist()
+        batch.facts = [concat_claims, np.array(result).flatten().tolist()]
 
         return batch

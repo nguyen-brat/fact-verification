@@ -37,7 +37,7 @@ class FactVerifyTrainer:
     def smart_batching_collate(self, batch:FactVerificationBatch):
         batch = batch[0]
         claim_tokenized = self.tokenizer(batch.claims, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
-        facts_tokenized = self.tokenizer(batch.facts, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
+        facts_tokenized = self.tokenizer(*batch.facts, return_tensors='pt', max_length=self.config.max_length, padding='max_length', pad_to_max_length=True, truncation=True)
         labels = batch.label
         return claim_tokenized, facts_tokenized, labels
 
