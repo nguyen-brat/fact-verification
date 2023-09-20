@@ -170,7 +170,7 @@ def parse_args():
     parser.add_argument("--model", default='amberoad/bert-multilingual-passage-reranking-msmarco', type=str)
     parser.add_argument("--max_length", default=256, type=int)
     parser.add_argument("--batch_size", default=16, type=int)
-    parser.add_argument("--epochs", default=10, type=int)
+    parser.add_argument("--epochs", default=100, type=int)
     parser.add_argument("--output_path", default='model/claim_verification/gear/saved_model', type=str)
     args = parser.parse_args()
     return args

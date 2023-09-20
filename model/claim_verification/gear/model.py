@@ -39,8 +39,9 @@ class SelfAttentionLayer(nn.Module):
         self.nhid = nhid
         self.nins = nins
         self.project = nn.Sequential(
-            Linear(nhid, 64),
+            Linear(nhid, 256),
             ReLU(True),
+            Linear(256, 64),
             Linear(64, 1)
         )
 
