@@ -116,7 +116,7 @@ class GEAR(nn.Module):
             inputs = inputs.sum(dim=1)
 
         inputs = F.relu(torch.mm(inputs, self.weight) + self.bias)
-        return F.log_softmax(inputs, dim=1)
+        return inputs
 
 class FactVerificationConfig(PretrainedConfig):
     model_type = 'factverification'
