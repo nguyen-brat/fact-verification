@@ -185,13 +185,20 @@ def main(args):
         model=args.model, # feature extractor model
     )
 
-    dataloader_config = RerankDataloaderConfig()
-    dataloader_config.num_hard_negatives = args.nins - 1
-    dataloader_config.num_other_negatives = 0
-    dataloader_config.shuffle = True
-    dataloader_config.shuffle_positives = True
-    dataloader_config.batch_size = args.batch_size
-    dataloader_config.remove_duplicate_context = False
+    dataloader_config = RerankDataloaderConfig(
+        num_hard_negatives=args.nins-1,
+        num_other_negatives=0,
+        shuffle=True,
+        shuffle_positives=True,
+        batch_size=args.batch_size,
+        remove_duplicate_context=False,
+    )
+    # dataloader_config.num_hard_negatives = args.nins - 1
+    # dataloader_config.num_other_negatives = 0
+    # dataloader_config.shuffle = True
+    # dataloader_config.shuffle_positives = True
+    # dataloader_config.batch_size = args.batch_size
+    # dataloader_config.remove_duplicate_context = False
 
     train_data = FactVerifyDataloader(dataloader_config, args.train_data_path)
     train_dataloader = DataLoader(train_data)
