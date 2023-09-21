@@ -19,7 +19,7 @@ class FocalLoss(nn.Module):
         return torch.mean(F_loss)
 
 def main(args):
-    dataloader_config = RerankDataloaderConfig
+    dataloader_config = RerankDataloaderConfig()
     dataloader_config.num_hard_negatives = args.num_hard_negatives
     dataloader_config.num_other_negatives = args.num_other_negatives
     dataloader_config.shuffle = args.shuffle

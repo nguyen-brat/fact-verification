@@ -10,6 +10,7 @@ import json
 from glob import glob
 from rank_bm25 import BM25Okapi
 from underthesea import sent_tokenize, word_tokenize
+from nltk import ngrams
 
 relation = {
     "SUPPORTED":0,
@@ -31,13 +32,24 @@ class CrossEncoderSamples(object):
 
 CrossEncoderBatch = List[InputExample] # [[claim, answer], [claim, answer]]
 
-class RerankDataloaderConfig(object):
-    num_hard_negatives:int=1,
-    num_other_negatives:int=7,
-    shuffle:bool=True,
-    shuffle_positives:bool=True,
-    batch_size:int=16,
-    remove_duplicate_context=False,
+class RerankDataloaderConfig:
+    def __init__(
+            self,
+            num_hard_negatives:int=1,
+            num_other_negatives:int=7,
+            shuffle:bool=True,
+            shuffle_positives:bool=True,
+            batch_size:int=16,
+            remove_duplicate_context=False,
+            word_tokenize = False
+    ):
+        self.num_hard_negatives = num_hard_negatives
+        self.num_other_negatives = num_other_negatives
+        self.shuffle = shuffle
+        self.shuffle_positives = shuffle_positives
+        self.batch_size = batch_size
+        self.remove_duplicate_context = remove_duplicate_context
+        self.word_tokenize = word_tokenize
 
 class RerankDataloader(Dataset):
     def __init__(
@@ -91,6 +103,7 @@ class RerankDataloader(Dataset):
         raw_data = self.read_files(self.data_paths[id:id+self.config.batch_size])
 
         data = pd.DataFrame(raw_data)
+        #print(data['context'])
         data['context'] = data['context'].map(self.split_doc)
         data['verdict'] = data['verdict'].map(lambda x: relation[x])
 
@@ -136,7 +149,9 @@ class RerankDataloader(Dataset):
         take query and bm25 object of batch context
         return index of top hard negative sample and easy negative sample in batch
         '''
-        scores = bm25.get_scores(word_tokenize(query))
+        if not self.config.word_tokenize:
+            query = word_tokenize(query, format='text')
+        scores = bm25.get_scores(self.n_gram(query))
         sorted_index = np.argsort(scores)
 
         extra_neg_sample = 1 # it will add a extra easy negative sample if there is no positive answer
@@ -152,11 +167,15 @@ class RerankDataloader(Dataset):
         return np.concatenate([easy_sample_index, hard_sample_index])
 
 
-    @staticmethod
-    def list_sentence_tokenize(inputs:List[str])->List[List[str]]:
+    def list_sentence_tokenize(self, inputs:List[str])->List[List[str]]:
+        '''
+        tokenize list of sentence for feeding to bm25
+        '''
         result = []
         for sentence in inputs:
-            result.append(word_tokenize(sentence, format='text'))
+            if not self.config.word_tokenize:
+                sentence = word_tokenize(sentence=sentence, format='text')
+            result.append(self.n_gram(sentence))
         return result
 
 
@@ -164,8 +183,19 @@ class RerankDataloader(Dataset):
         results = list(map(self.read_file, paths))
         return results
 
-    @staticmethod
-    def read_file(file):
+
+    def read_file(self, file):
         with open(file, 'r') as f:
             data = json.load(f)
+            if self.config.word_tokenize:
+                for key in ['context', 'claim', 'evidient']:
+                    data[key] = word_tokenize(data[key], format='text')
         return data
+    
+    @staticmethod
+    def n_gram(sentence, n=3):
+        result = [*sentence.split()]
+        for gram in range(2, n+1):
+            ngram = ngrams(sentence.split(), gram)
+            result += map(lambda x: '_'.join(x), ngram)
+        return result

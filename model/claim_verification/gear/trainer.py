@@ -185,7 +185,7 @@ def main(args):
         model=args.model, # feature extractor model
     )
 
-    dataloader_config = RerankDataloaderConfig
+    dataloader_config = RerankDataloaderConfig()
     dataloader_config.num_hard_negatives = args.nins - 1
     dataloader_config.num_other_negatives = 0
     dataloader_config.shuffle = True
