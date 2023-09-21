@@ -145,17 +145,23 @@ class FactVerification(PreTrainedModel):
         super().__init__(config)
         self.config = config
         self.feature_extractor = feature_extract(model=config.model)
-        self.gear = GEAR(nfeat=config.nfeat,
-                         nins=config.nins,
-                         nclass=config.nclass,
-                         nlayer=config.nlayer,
-                         pool=config.pool,)
+        # self.gear = GEAR(nfeat=config.nfeat,
+        #                  nins=config.nins,
+        #                  nclass=config.nclass,
+        #                  nlayer=config.nlayer,
+        #                  pool=config.pool,)
+        self.linear = torch.nn.Linear(in_features=self.config.nfeat, out_features=self.config.nclass)
 
     def forward(self, claim, fact):
-        claim_embed, fact_embed = self.feature_extractor(claim), self.feature_extractor(fact)
+        # claim_embed, fact_embed = self.feature_extractor(claim), self.feature_extractor(fact)
+        # fact_embed = torch.reshape(fact_embed, shape=[-1, self.config.nins] + list(fact_embed.shape[1:]))
+        # output = self.gear(fact_embed, claim_embed)
+        # return output
+        fact_embed = self.feature_extractor(fact)
         fact_embed = torch.reshape(fact_embed, shape=[-1, self.config.nins] + list(fact_embed.shape[1:]))
-        output = self.gear(fact_embed, claim_embed)
-        return output
+        output = fact_embed.max(dim=1)
+        logits = self.linear(output)
+        return logits
     
 if __name__ == "__main__":
     pass
