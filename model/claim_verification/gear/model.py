@@ -159,7 +159,7 @@ class FactVerification(PreTrainedModel):
         # return output
         fact_embed = self.feature_extractor(fact)
         fact_embed = torch.reshape(fact_embed, shape=[-1, self.config.nins] + list(fact_embed.shape[1:]))
-        output = fact_embed.max(dim=1)
+        output = fact_embed.max(dim=1).values
         logits = self.linear(output)
         return logits
     
