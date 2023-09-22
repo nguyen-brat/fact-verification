@@ -24,6 +24,7 @@ class FactVerificationBatch(object):
     claims:List[str]
     facts_claims:List[List[str], List[str]] # [evidient 1, evidient2, evidien3, evident5, enviden]
     label:torch.Tensor # 1-d tensor for label of if claim has the same len of claims
+    is_positive:torch.Tensor
     fact_per_claim:int # 5
 
 
@@ -45,7 +46,7 @@ class FactVerifyDataloader(RerankDataloader):
         batch.claims = raw_batch.query
         batch.label = torch.tensor(raw_batch.labels)
         batch.fact_per_claim = self.config.num_hard_negatives + self.config.num_other_negatives + 1 # 1 is the positive fact
-        batch.facts = []
+        batch.facts_claims = []
 
         tokenize_batch_context = self.list_sentence_tokenize(raw_batch.contexts)
         bm25 = BM25Okapi(tokenize_batch_context)
@@ -76,6 +77,6 @@ class FactVerifyDataloader(RerankDataloader):
         concat_claims = np.array(claims*batch.fact_per_claim)
         concat_claims = concat_claims.reshape(batch.fact_per_claim, self.config.batch_size)
         concat_claims = concat_claims.transpose().flatten().tolist()
-        batch.facts = [concat_claims, np.array(result).flatten().tolist()]
+        batch.facts_claims = [concat_claims, np.array(result).flatten().tolist()]
 
         return batch

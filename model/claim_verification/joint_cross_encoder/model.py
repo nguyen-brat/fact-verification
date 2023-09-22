@@ -14,6 +14,7 @@ class AggregateTransformers(nn.Module):
 
     def __init__(self,
                  in_features,
+                 out_features,
                  head_num,
                  bias=True,
                  activation=F.relu,
@@ -28,6 +29,7 @@ class AggregateTransformers(nn.Module):
         super(AggregateTransformers, self).__init__()
         if in_features % head_num != 0:
             raise ValueError('`in_features`({}) should be divisible by `head_num`({})'.format(in_features, head_num))
+        self.aggregation = aggregation
         self.in_features = in_features
         self.head_num = head_num
         self.activation = activation
@@ -35,8 +37,9 @@ class AggregateTransformers(nn.Module):
         self.linear_q = nn.Linear(in_features, in_features, bias)
         self.linear_k = nn.Linear(in_features, in_features, bias)
         self.linear_v = nn.Linear(in_features, in_features, bias)
+        self.linear_o = nn.Linear(in_features, out_features, bias)
 
-    def forward(self, q, k, v, mask=None):
+    def forward(self, q, k, v):
         q, k, v = self.linear_q(q), self.linear_k(k), self.linear_v(v)
         if self.activation is not None:
             q = self.activation(q)
@@ -46,11 +49,10 @@ class AggregateTransformers(nn.Module):
         q = self._reshape_to_batches(q)
         k = self._reshape_to_batches(k)
         v = self._reshape_to_batches(v)
-        if mask is not None:
-            mask = mask.repeat(self.head_num, 1, 1)
-        y = self.AggregateScaledDotProductAttention(q, k, v)
+        
+        y = self.AggregateScaledDotProductAttention(q, k, v, aggregate_type=self.aggregation)
         y = self._reshape_from_batches(y).squeeze()
-
+        y = self.linear_o(y)
 
         return y
     
@@ -143,24 +145,28 @@ class JointCrossEncoder(PreTrainedModel):
             (f'evident_aggregate_{i}', nn.MultiheadAttention(
                 embed_dim=self.feature_extractor.extractor_config.hidden_size,
                 num_heads=self.feature_extractor.extractor_config.num_attention_heads,
+                batch_first=True,
             )) for i in range(self.config.nlayer)
         ]))
         self.aggerator = AggregateTransformers(
             in_features=self.feature_extractor.extractor_config.hidden_size,
             head_num=self.feature_extractor.extractor_config.num_attention_heads,
         )
+        self.positive_classify_linear = nn.Linear(in_features=self.feature_extractor.extractor_config.hidden_size, out_features=1)
 
-    def forward(self, fact):
+    def forward(self, fact, is_positive):
         fact_embed = self.feature_extractor(fact)
         fact_embed = torch.reshape(fact_embed, shape=[-1, self.config.nins] + list(fact_embed.shape[1:]))
         
-        single_evident_output = self.single_evident_linear(fact_embed)
-        single_evident_logits = self.single_evident_linear(single_evident_output)
+        positive_logits = self.positive_classify_linear(single_evident_output).squeeze() # batch_size, n_evidents
 
         multi_evident_output = self.evident_aggrerator(fact_embed)
-        multi_evident_logits = self.aggerator(multi_evident_output)
+        multi_evident_logits = self.aggerator(multi_evident_output) # (batch_size, dim)
 
-        return single_evident_logits, multi_evident_logits
+        single_evident_output = fact_embed[range(fact.shape[0]), is_positive, :] # is positive is a list of id of positive sample (real sample) in every batch sample
+        single_evident_logits = self.single_evident_linear(single_evident_output) # batch_size, evident, n_labels
+
+        return multi_evident_logits, single_evident_logits, positive_logits
 
     
 if __name__ == "__main__":
