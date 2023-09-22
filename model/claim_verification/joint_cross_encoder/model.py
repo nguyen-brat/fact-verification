@@ -163,7 +163,7 @@ class JointCrossEncoder(PreTrainedModel):
         multi_evident_output = self.evident_aggrerator(fact_embed)
         multi_evident_logits = self.aggerator(multi_evident_output) # (batch_size, dim)
 
-        single_evident_output = fact_embed[range(fact.shape[0]), is_positive, :] # is positive is a list of id of positive sample (real sample) in every batch sample
+        single_evident_output = fact_embed[range(fact.shape[0]), is_positive, :] # is positive is a 1-d tensor of id of positive sample (real sample) in every batch sample
         single_evident_logits = self.single_evident_linear(single_evident_output) # batch_size, evident, n_labels
 
         return multi_evident_logits, single_evident_logits, positive_logits
