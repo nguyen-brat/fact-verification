@@ -81,8 +81,8 @@ class FactVerifyDataloader(RerankDataloader):
             random.shuffle(temp)
             claims, label, facts, batch.is_positive = zip(*temp)
             claims, label, facts, batch.is_positive = list(claims), list(label), list(facts), list(batch.is_positive)
-            batch.is_positive_ohot = torch.tensor(batch.is_positive)
-            batch.is_positive = torch.argmax(batch.is_positive_ohot, dim=1)
+            batch.is_positive_ohot = torch.tensor(batch.is_positive, dtype=torch.float32)
+            batch.is_positive = torch.argmax(batch.is_positive_ohot, dim=1).type(torch.float32)
             batch.label = torch.tensor(label)
             batch.claims = claims
 

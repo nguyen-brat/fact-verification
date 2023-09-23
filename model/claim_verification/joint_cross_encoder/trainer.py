@@ -26,16 +26,14 @@ class BinaryFocalLoss(nn.Module):
         F_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
         return torch.mean(F_loss)
     
-class JointCrossEncodeerTrainer:
+class JointCrossEncoderTrainer:
     def __init__(
             self,
-            config,
+            config:JointCrossEncoderConfig,
     ):
-        self.config = AutoConfig.from_pretrained(config.model)
+        self.config = config
 
-        self.model = AutoModel.from_pretrained(config.model,
-                                               config=self.config,
-                                               ignore_mismatched_sizes=True,)
+        self.model = JointCrossEncoder(config=config)
         self.tokenizer = AutoTokenizer.from_pretrained(config.model)
 
         deepspeed_plugin = DeepSpeedPlugin(
@@ -55,12 +53,12 @@ class JointCrossEncodeerTrainer:
     
     def smart_batching_collate(self, batch):
         batch = batch[0]
-        fact_claims_ids = self.tokenizer(*batch.claims_facts, padding='max_length', truncation='longest_first', return_tensors="pt", max_length=self.max_length)
+        fact_claims_ids = self.tokenizer(*batch.claims_facts, padding='max_length', truncation='longest_first', return_tensors="pt", max_length=self.config.max_length)
 
         return fact_claims_ids, batch.label, batch.is_positive, batch.is_positive_ohot
 
 
-    def __call(
+    def __call__(
             self,
             train_dataloader: DataLoader,
             val_dataloader: DataLoader=None,
@@ -164,7 +162,7 @@ class JointCrossEncodeerTrainer:
             self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
         return train_loss_list, acc_list
-
+    
 
 def main(args):
     dataloader_config = RerankDataloaderConfig(
@@ -188,7 +186,6 @@ def main(args):
         )
         val_dataloader = DataLoader(val_data) # batch size is always  because it has bactched when creat data
     train_dataloader = DataLoader(train_data)
-
     loss_fct = None
     if args.use_focal_loss:
         binary_loss_fct = BinaryFocalLoss()
@@ -203,7 +200,7 @@ def main(args):
             force_reload=False
         )
         loss_fct = [binary_loss_fct, multi_loss_fct]
-    trainer = JointCrossEncodeerTrainer(config=JointCrossEncoderConfig())
+    trainer = JointCrossEncoderTrainer(config=JointCrossEncoderConfig())
     warnmup_step = math.ceil(len(train_dataloader) * 10 * 0.1)
     trainer(
         train_dataloader=train_dataloader,
@@ -219,20 +216,19 @@ def parse_args():
     Parse arguments from command line.
     """
     parser = argparse.ArgumentParser(description="Arguments for rerank Trainning")
-    parser.add_argument("--model", default='amberoad/bert-multilingual-passage-reranking-msmarco', type=str)
+    parser.add_argument("--model", default='bert-base-cased', type=str)
     parser.add_argument("--max_length", default=512, type=int)
     parser.add_argument("--num_label", default=2, type=int)
     parser.add_argument("--train_data_path", default='dump_data/train', type=str)
     parser.add_argument("--val_data_path", default=None, type=str)
-    parser.add_argument("--num_hard_negatives", default=1, type=int)
-    parser.add_argument("--num_other_negatives", default=1, type=int)
+    parser.add_argument("--num_hard_negatives", default=4, type=int)
     parser.add_argument("--shuffle", default=True, action=argparse.BooleanOptionalAction)
     parser.add_argument("--shuffle_positives", default=True, action=argparse.BooleanOptionalAction)
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--remove_duplicate_context", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--epochs", default=40, type=int)
     parser.add_argument("--use_focal_loss", default=False, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
-    parser.add_argument("--save_model_path", default="model/reranking/saved_model", type=str)
+    parser.add_argument("--save_model_path", default="model/claim_verification/joint_cross_encoder/saved_model", type=str)
     parser.add_argument("--device", type=str, default="cuda:0", help="Specify which gpu device to use.")
     args = parser.parse_args()
     return args

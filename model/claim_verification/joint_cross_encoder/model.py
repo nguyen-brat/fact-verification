@@ -141,15 +141,14 @@ class JointCrossEncoder(PreTrainedModel):
         self.config = config
         self.feature_extractor = FeatureExtract(model=config.model)
         self.single_evident_linear = torch.nn.Linear(in_features=self.feature_extractor.extractor_config.hidden_size, out_features=self.config.nclass)
-        self.evident_aggrerator = nn.Sequential(OrderedDict([
-            (f'evident_aggregate_{i}', nn.MultiheadAttention(
+        self.evident_aggrerators = nn.ModuleList([nn.MultiheadAttention(
                 embed_dim=self.feature_extractor.extractor_config.hidden_size,
                 num_heads=self.feature_extractor.extractor_config.num_attention_heads,
                 batch_first=True,
-            )) for i in range(self.config.nlayer)
-        ]))
+            ) for _ in range(self.config.nlayer)])
         self.aggerator = AggregateTransformers(
             in_features=self.feature_extractor.extractor_config.hidden_size,
+            out_features=config.nclass,
             head_num=self.feature_extractor.extractor_config.num_attention_heads,
         )
         self.positive_classify_linear = nn.Linear(in_features=self.feature_extractor.extractor_config.hidden_size, out_features=1)
@@ -160,10 +159,13 @@ class JointCrossEncoder(PreTrainedModel):
         
         positive_logits = self.positive_classify_linear(fact_embed).squeeze() # batch_size, n_evidents
 
-        multi_evident_output = self.evident_aggrerator(fact_embed)
-        multi_evident_logits = self.aggerator(multi_evident_output) # (batch_size, n_labels)
+        multi_evident_output = fact_embed
+        for evident_aggrerator in self.evident_aggrerators:
+            multi_evident_output = evident_aggrerator(*[multi_evident_output]*3)[0]
+        multi_evident_logits = self.aggerator(*[multi_evident_output]*3) # (batch_size, n_labels)
 
-        single_evident_output = fact_embed[torch.arange(fact.shape[0]), is_positive, :] # is positive is a 1-d tensor of id of positive sample (real sample) in every batch sample
+
+        single_evident_output = fact_embed[torch.arange(fact_embed.shape[0]).tolist(), is_positive.tolist(), :] # is positive is a 1-d tensor of id of positive sample (real sample) in every batch sample
         single_evident_logits = self.single_evident_linear(single_evident_output) # batch_size, n_labels
 
         return multi_evident_logits, single_evident_logits, positive_logits
