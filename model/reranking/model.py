@@ -5,8 +5,7 @@ import os
 from typing import Dict, Type, Callable, List
 import torch
 from torch import nn
-from torcheval.metrics import MulticlassF1Score
-from torcheval.metrics import BinaryF1Score
+from torcheval.metrics import MulticlassF1Score, BinaryF1Score
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm import tqdm, trange

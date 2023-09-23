@@ -1,5 +1,5 @@
 from .model import JointCrossEncoder, JointCrossEncoderConfig
-from .dataloader import FactVerifyDataloader, RerankDataloaderConfig
+from .dataloader import FactVerifyDataloader, RerankDataloaderConfig, FactVerificationBatch
 from accelerate import Accelerator, DeepSpeedPlugin
 from transformers import AutoModel, AutoConfig, AutoTokenizer
 from torch.utils.data import DataLoader
@@ -7,16 +7,17 @@ import torch
 import torch.nn as nn
 from torch.optim import Optimizer
 import torch.nn.functional as F
+from torcheval.metrics import MulticlassF1Score, BinaryF1Score
 import argparse
 import math
-from typing import Type, Dict
+from typing import Type, Dict, List
 import os
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 
-class FocalLoss(nn.Module):
+class BinaryFocalLoss(nn.Module):
     def __init__(self, alpha=0.25, gamma=2):
-        super(FocalLoss, self).__init__()
+        super(BinaryFocalLoss, self).__init__()
         self.alpha = alpha
         self.gamma = gamma
     def forward(self, inputs, targets):
@@ -54,39 +55,26 @@ class JointCrossEncodeerTrainer:
     
     def smart_batching_collate(self, batch):
         batch = batch[0]
-        texts = [[] for _ in range(len(batch[0].texts))]
-        labels = []
+        fact_claims_ids = self.tokenizer(*batch.claims_facts, padding='max_length', truncation='longest_first', return_tensors="pt", max_length=self.max_length)
 
-        for example in batch:
-            for idx, text in enumerate(example.texts):
-                texts[idx].append(text.strip())
-
-            labels.append(example.label)
-
-        tokenized = self.tokenizer(*texts, padding=True, truncation='longest_first', return_tensors="pt", max_length=self.max_length)
-        labels = torch.tensor(labels, dtype=torch.float if self.config.num_labels == 1 else torch.long)
-
-        for name in tokenized:
-            tokenized[name] = tokenized[name]
-
-        return tokenized, labels
+        return fact_claims_ids, batch.label, batch.is_positive, batch.is_positive_ohot
 
 
     def __call(
             self,
             train_dataloader: DataLoader,
             val_dataloader: DataLoader=None,
-            epochs: int = 1,
-            loss_fct = None,
-            activation_fct = nn.Identity(),
+            epochs: int = 10,
             scheduler: str = 'WarmupLinear',
             warmup_steps: int = 10000,
             optimizer_class: Type[Optimizer] = torch.optim.AdamW,
             optimizer_params: Dict[str, object] = {'lr': 2e-5},
             weight_decay: float = 0.01,
+            loss_fct = None,
             output_path: str = None,
             save_best_model: bool = True,
-            show_progress_bar: bool = True
+            show_progress_bar: bool = True,
+            patient: int = 5,
     ):
         train_dataloader.collate_fn = self.smart_batching_collate
         if val_dataloader != None:
@@ -113,8 +101,10 @@ class JointCrossEncodeerTrainer:
         if isinstance(scheduler, str):
             scheduler = SentenceTransformer._get_scheduler(optimizer, scheduler=scheduler, warmup_steps=warmup_steps, t_total=num_train_steps)
 
-        if loss_fct is None:
-            loss_fct = nn.BCEWithLogitsLoss() if self.config.num_labels == 1 else nn.CrossEntropyLoss()
+        if loss_fct:
+            multi_loss_fct, binary_loss_fct = loss_fct[1], loss_fct[0]
+        else:
+            multi_loss_fct, binary_loss_fct = nn.CrossEntropyLoss(), nn.BCEWithLogitsLoss()
 
         if val_dataloader == None:
             self.model, optimizer, scheduler, train_dataloader = self.accelerator.prepare(self.model, optimizer, scheduler, train_dataloader)
@@ -135,14 +125,15 @@ class JointCrossEncodeerTrainer:
             self.model.zero_grad()
             self.model.train()
 
-            for features, labels in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
-                model_predictions = self.model(**features, return_dict=True)
-                logits = activation_fct(model_predictions.logits)
+            for fact_claims_ids, labels, is_positive, is_positive_ohot in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
+                multi_evident_logits, single_evident_logits, positive_logits = self.model(fact_claims_ids, is_positive)
                 if self.config.num_labels == 1:
                     logits = logits.view(-1)
-                loss_value = loss_fct(logits, labels)
+                multi_evident_loss_value = multi_loss_fct(multi_evident_logits, labels)
+                single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
+                is_positive_loss_value = binary_loss_fct(positive_logits, is_positive_ohot)
+                loss_value = (multi_evident_loss_value + single_evident_loss_value + is_positive_loss_value)/3
                 self.accelerator.backward(loss_value)
-                #torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
                 optimizer.step()
                 optimizer.zero_grad()
                 if not skip_scheduler:
@@ -178,7 +169,7 @@ class JointCrossEncodeerTrainer:
 def main(args):
     dataloader_config = RerankDataloaderConfig(
         num_hard_negatives = args.num_hard_negatives,
-        num_other_negatives = args.num_other_negatives,
+        num_other_negatives = 0,
         shuffle = args.shuffle,
         shuffle_positives = args.shuffle_positives,
         batch_size = args.batch_size,
@@ -200,19 +191,18 @@ def main(args):
 
     loss_fct = None
     if args.use_focal_loss:
-        if args.num_label==1:
-            loss_fct = FocalLoss()
-        else:
-            loss_fct = torch.hub.load(
-                'adeelh/pytorch-multi-class-focal-loss',
-                model='focal_loss',
-                alpha=[.75, .25],
-                gamma=2,
-                reduction='mean',
-                device=args.device,
-                dtype=torch.float32,
-                force_reload=False
-            )
+        binary_loss_fct = BinaryFocalLoss()
+        multi_loss_fct = torch.hub.load(
+            'adeelh/pytorch-multi-class-focal-loss',
+            model='focal_loss',
+            alpha=[.75, .25],
+            gamma=2,
+            reduction='mean',
+            device=args.device,
+            dtype=torch.float32,
+            force_reload=False
+        )
+        loss_fct = [binary_loss_fct, multi_loss_fct]
     trainer = JointCrossEncodeerTrainer(config=JointCrossEncoderConfig())
     warnmup_step = math.ceil(len(train_dataloader) * 10 * 0.1)
     trainer(
@@ -247,7 +237,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def rerank_run():
+def join_fact_verify_run():
     args = parse_args()
     main(args=args)
 
