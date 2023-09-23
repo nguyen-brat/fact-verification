@@ -265,7 +265,7 @@ def parse_args():
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--remove_duplicate_context", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--epochs", default=30, type=int)
-    parser.add_argument("--use_focal_loss", default=True, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
+    parser.add_argument("--use_focal_loss", default=False, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
     parser.add_argument("--save_model_path", default="model/claim_verification/joint_cross_encoder/saved_model", type=str)
     parser.add_argument("--device", type=str, default="cuda:0", help="Specify which gpu device to use.")
     args = parser.parse_args()
