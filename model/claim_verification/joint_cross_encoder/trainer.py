@@ -225,7 +225,20 @@ def main(args):
             force_reload=False
         )
         loss_fct = [binary_loss_fct, multi_loss_fct]
-    trainer = JointCrossEncoderTrainer(config=JointCrossEncoderConfig())
+    '''
+    nins: int = 5,
+    nclass: int = 3,
+    nlayer: int = 5,
+    pool: str = 'att',
+    model: str = 'amberoad/bert-multilingual-passa',
+    max_length: int = 256,
+    **kwargs: Any
+    '''
+    trainer = JointCrossEncoderTrainer(config=JointCrossEncoderConfig(
+        model=args.model,
+        nins=args.num_hard_negatives+1,
+        max_length=args.max_length,
+    ))
     warnmup_step = math.ceil(len(train_dataloader) * 10 * 0.1)
     trainer(
         train_dataloader=train_dataloader,
@@ -242,7 +255,7 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description="Arguments for rerank Trainning")
     parser.add_argument("--model", default='bert-base-cased', type=str)
-    parser.add_argument("--max_length", default=512, type=int)
+    parser.add_argument("--max_length", default=256, type=int)
     parser.add_argument("--num_label", default=2, type=int)
     parser.add_argument("--train_data_path", default='dump_data/train', type=str)
     parser.add_argument("--val_data_path", default=None, type=str)
