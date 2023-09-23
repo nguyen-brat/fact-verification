@@ -53,7 +53,7 @@ class JointCrossEncoderTrainer:
     
     def smart_batching_collate(self, batch):
         batch = batch[0]
-        fact_claims_ids = self.tokenizer(*batch.claims_facts, padding='max_length', truncation='longest_first', return_tensors="pt", max_length=self.config.max_length)
+        fact_claims_ids = self.tokenizer(*batch.claims_facts, padding='max_length', truncation='only_second', return_tensors="pt", max_length=self.config.max_length)
 
         return fact_claims_ids, batch.label, batch.is_positive, batch.is_positive_ohot
 
@@ -217,7 +217,7 @@ def main(args):
         multi_loss_fct = torch.hub.load(
             'adeelh/pytorch-multi-class-focal-loss',
             model='focal_loss',
-            alpha=[.75, .25],
+            alpha=[.33, .33, .33],
             gamma=2,
             reduction='mean',
             device=args.device,
@@ -254,7 +254,7 @@ def parse_args():
     Parse arguments from command line.
     """
     parser = argparse.ArgumentParser(description="Arguments for rerank Trainning")
-    parser.add_argument("--model", default='bert-base-cased', type=str)
+    parser.add_argument("--model", default='keepitreal/vietnamese-sbert', type=str)
     parser.add_argument("--max_length", default=256, type=int)
     parser.add_argument("--num_label", default=2, type=int)
     parser.add_argument("--train_data_path", default='dump_data/train', type=str)
