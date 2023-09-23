@@ -10,6 +10,7 @@ import random
 from transformers import MT5Tokenizer, MT5ForConditionalGeneration
 from underthesea import sent_tokenize
 from googletrans import Translator
+from difflib import SequenceMatcher
 
 class DataAugmentation(Dataset):
   def __init__(self,
@@ -22,12 +23,6 @@ class DataAugmentation(Dataset):
     self.raw_data = pd.DataFrame(self.raw_data)
     self.raw_context = self.raw_data['context'].map(self.split_doc)
     self.eidx = self.index_of_evidient()
-
-    CKPT = 'chieunq/vietnamese-sentence-paraphase'
-    tokenizer_pr = MT5Tokenizer.from_pretrained(CKPT)
-    model_pr = MT5ForConditionalGeneration.from_pretrained(CKPT).to('cuda')
-
-    translator = Translator()
 
   def __call__(self,
                output_path,
@@ -42,12 +37,16 @@ class DataAugmentation(Dataset):
       json_data = self.back_translate.to_json(output_path + 'Back_translate_augmentation_data.json')
 
   @staticmethod
+  def similar(a, b):
+    return SequenceMatcher(None, a, b).ratio()
+
+  @staticmethod
   def split_doc(graphs):
     output = sent_tokenize(graphs)
     in_element = list(map(lambda x:x[:-1].strip(), output[:-1]))
     last_element = output[-1] if (output[-1][-1] != '.') else output[-1][-1].strip()
     return in_element + [last_element]
-  
+
   def index_of_evidient(self):
     list_of_idx = []
     for i in range(self.num_data):
@@ -56,19 +55,25 @@ class DataAugmentation(Dataset):
       else:
         list_of_idx.append(-1)
     return list_of_idx
-  
+
 
   def pr(self, text):
     inputs = tokenizer_pr(text, padding='longest', max_length=64, return_tensors='pt')
     input_ids = inputs.input_ids
     attention_mask = inputs.attention_mask
     output = model_pr.generate(input_ids, attention_mask=attention_mask, max_length=64)
-    return tokenizer_pr.decode(output[0], skip_special_tokens=True)
+    at = tokenizer_pr.decode(output[0], skip_special_tokens=True)
+    if(self.similar(text, at) < 0.9):
+      return at
+    return ""
+
 
   def bt(self, text):
-    en = translator.translate(text, src='vi', dest='en')
-    vi = translator.translate(en.text, src='en', dest='vi')
-    return vi.text
+    en = translator.translate(text, dest='en')
+    vi = translator.translate(en.text, dest='vi')
+    if(self.similar(text, vi.text) < 0.9):
+      return vi.text
+    return ""
 
   def llm_paraphrase(self):
     new_data = self.raw_data.copy()
@@ -79,7 +84,8 @@ class DataAugmentation(Dataset):
     for i in range(self.num_data):
       if(self.raw_data['verdict'][i] != "NEI"):
         new_data['evidient'][i] = raw_context[i][self.eidx[i]]
-
+    new_data = new_data.drop(new_data[new_data['context'] == ""].index)
+    new_data = new_data.drop(new_data[new_data['claim'] == ""].index)
     return new_data
 
   def back_translation(self):
@@ -91,6 +97,8 @@ class DataAugmentation(Dataset):
     for i in range(self.num_data):
       if(self.raw_data['verdict'][i] != "NEI"):
         new_data['evidient'][i] = raw_context[i][self.eidx[i]]
+    new_data = new_data.drop(new_data[new_data['context'] == ""].index)
+    new_data = new_data.drop(new_data[new_data['claim'] == ""].index)
     return new_data
 
   def remove_stopwords(self):
