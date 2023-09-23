@@ -169,6 +169,18 @@ class JointCrossEncoder(PreTrainedModel):
         single_evident_logits = self.single_evident_linear(single_evident_output) # batch_size, n_labels
 
         return multi_evident_logits, single_evident_logits, positive_logits
+    
+    def predict(
+            self,
+            inputs, # dictionary of input id, mask attention, type_ids of claims and facts
+    ):
+        with torch.no_grad():
+            inputs_embed = self.feature_extractor(inputs).unsqueeze()
+            for evident_aggrerator in self.evident_aggrerators:
+                inputs_embed = evident_aggrerator(*[inputs_embed]*3)[0]
+            multi_evident_logits = self.aggerator(*[inputs_embed]*3).squeeze() # (n_labels)
+        return F.softmax(multi_evident_logits) 
+
 
     
 if __name__ == "__main__":

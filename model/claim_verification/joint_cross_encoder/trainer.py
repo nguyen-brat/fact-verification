@@ -155,6 +155,9 @@ class JointCrossEncoderTrainer:
                     self.save_during_training(output_path)
 
             self.accelerator.print(f'loss value is {loss_value.item()}')
+            self.accelerator.print(f'multiple evident loss value is {multi_evident_loss_value.item()}')
+            self.accelerator.print(f'single evident loss value is {single_evident_loss_value.item()}')
+            self.accelerator.print(f'positive loss value is {is_positive_loss_value.item()}')
             train_loss_list.append(loss_value.item())
             self.accelerator.wait_for_everyone()
 
@@ -162,6 +165,28 @@ class JointCrossEncoderTrainer:
             self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
         return train_loss_list, acc_list
+    
+    def val_evaluation(self,
+                       val_dataloader,
+                       metrics,
+                       ):
+        with torch.no_grad():
+            for feature, label in val_dataloader:
+                logits = self.model(**feature, return_dict=True).logits
+                if self.config.num_labels == 1:
+                    logits = logits.view(-1)
+                metrics.update(logits, label)
+        return metrics.compute()
+    
+    def save_during_training(self, output_path):
+        unwrapped_model = self.accelerator.unwrap_model(self.model)
+        unwrapped_model.save_pretrained(
+            output_path,
+            is_main_process=self.accelerator.is_main_process,
+            save_function=self.accelerator.save,
+            state_dict=self.accelerator.get_state_dict(self.model),
+        )
+        self.tokenizer.save_pretrained(output_path)
     
 
 def main(args):
@@ -226,8 +251,8 @@ def parse_args():
     parser.add_argument("--shuffle_positives", default=True, action=argparse.BooleanOptionalAction)
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--remove_duplicate_context", default=False, action=argparse.BooleanOptionalAction)
-    parser.add_argument("--epochs", default=40, type=int)
-    parser.add_argument("--use_focal_loss", default=False, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
+    parser.add_argument("--epochs", default=30, type=int)
+    parser.add_argument("--use_focal_loss", default=True, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
     parser.add_argument("--save_model_path", default="model/claim_verification/joint_cross_encoder/saved_model", type=str)
     parser.add_argument("--device", type=str, default="cuda:0", help="Specify which gpu device to use.")
     args = parser.parse_args()
