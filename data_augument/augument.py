@@ -23,6 +23,10 @@ class DataAugmentation(Dataset):
     self.raw_data = pd.DataFrame(self.raw_data)
     self.raw_context = self.raw_data['context'].map(self.split_doc)
     self.eidx = self.index_of_evidient()
+    self.CKPT = 'chieunq/vietnamese-sentence-paraphase'
+    self.tokenizer_pr = MT5Tokenizer.from_pretrained(self.CKPT)
+    self.model_pr = MT5ForConditionalGeneration.from_pretrained(CKPT).to('cuda')
+    self.translator = Translator()
 
   def __call__(self,
                output_path,
@@ -58,28 +62,27 @@ class DataAugmentation(Dataset):
 
 
   def pr(self, text):
-    inputs = tokenizer_pr(text, padding='longest', max_length=64, return_tensors='pt')
-    input_ids = inputs.input_ids
-    attention_mask = inputs.attention_mask
-    output = model_pr.generate(input_ids, attention_mask=attention_mask, max_length=64)
-    at = tokenizer_pr.decode(output[0], skip_special_tokens=True)
+    inputs = self.tokenizer_pr(text, padding='longest', max_length=64, return_tensors='pt')
+    input_ids = inputs.input_ids.to('cuda')
+    attention_mask = inputs.attention_mask.to('cuda')
+    output = self.model_pr.generate(input_ids, attention_mask=attention_mask, max_length=64)
+    at = self.tokenizer_pr.decode(output[0], skip_special_tokens=True)
     if(self.similar(text, at) < 0.9):
       return at
     return ""
 
 
   def bt(self, text):
-    en = translator.translate(text, dest='en')
-    vi = translator.translate(en.text, dest='vi')
+    en = self.translator.translate(text, dest='en')
+    vi = self.translator.translate(en.text, dest='vi')
     if(self.similar(text, vi.text) < 0.9):
       return vi.text
     return ""
 
   def llm_paraphrase(self):
     new_data = self.raw_data.copy()
-    with multiprocessing.Pool() as pool:
-      new_data['context'] = pool.map(self.pr, new_data['context'])
-      new_data['claim'] = pool.map(self.pr, new_data['claim'])
+    new_data['context'] = new_data['context'].apply(self.pr)
+    new_data['claim'] = new_data['claim'].apply(self.pr)
     raw_context = new_data['context'].map(self.split_doc)
     for i in range(self.num_data):
       if(self.raw_data['verdict'][i] != "NEI"):
@@ -90,9 +93,8 @@ class DataAugmentation(Dataset):
 
   def back_translation(self):
     new_data = self.raw_data.copy()
-    with multiprocessing.Pool() as pool:
-      new_data['context'] = pool.map(self.bt, new_data['context'])
-      new_data['claim'] = pool.map(self.bt, new_data['claim'])
+    new_data['context'] = new_data['context'].apply(self.bt)
+    new_data['claim'] = new_data['claim'].apply(self.bt)
     raw_context = new_data['context'].map(self.split_doc)
     for i in range(self.num_data):
       if(self.raw_data['verdict'][i] != "NEI"):
