@@ -225,15 +225,7 @@ def main(args):
             force_reload=False
         )
         loss_fct = [binary_loss_fct, multi_loss_fct]
-    '''
-    nins: int = 5,
-    nclass: int = 3,
-    nlayer: int = 5,
-    pool: str = 'att',
-    model: str = 'amberoad/bert-multilingual-passa',
-    max_length: int = 256,
-    **kwargs: Any
-    '''
+        
     trainer = JointCrossEncoderTrainer(config=JointCrossEncoderConfig(
         model=args.model,
         nins=args.num_hard_negatives+1,

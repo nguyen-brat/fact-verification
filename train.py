@@ -5,4 +5,5 @@ from model.claim_verification.joint_cross_encoder.trainer import join_fact_verif
 if __name__ == "__main__":
     #rerank_run()
     #fact_verify_run()
-    join_fact_verify_run()
+    #join_fact_verify_run()
+    pass
