@@ -18,13 +18,7 @@ class Visualization():
     self.raw_data = self.read_files(self.data_paths)
     self.raw_data = pd.DataFrame(self.raw_data)
     '''
-    self.raw_data = pd.read_json(data_path).transpose().sort_index().reset_index()
-    raw_context = self.raw_data['context'].map(self.split_doc)
-    self.raw_context = []
-    for i in range(len(raw_context)):
-      self.raw_context.extend(raw_context[i])
-    self.raw_context = pd.Series(self.raw_context)
-    self.bm25 = BM25Okapi([txt.split() for txt in self.raw_context])
+    self.raw_data = pd.read_json("/content/gdrive/MyDrive/Test/ise-dsc01-warmup.json").transpose().sort_index().reset_index()
 
   def read_files(self, paths):
         results = list(map(self.read_file, paths))
@@ -67,16 +61,15 @@ class Visualization():
   def label(self):
     return self.raw_data['verdict'].value_counts(0)
 
-  def bm25_retrieval(self, text, top_k):
-    doc_scores = np.array(self.bm25.get_scores(text.split()))
-    sort_idx = np.flip(np.argsort(doc_scores))
-    return [self.raw_context[idx] for idx in sort_idx[:top_k]]
-
   def bm25_result(self, top_k):
     correct = 0
     wrong = 0
     for i in range(len(self.raw_data['claim'])):
-      fact_list = self.bm25_retrieval(self.raw_data['claim'][i], top_k)
+      raw_context = self.split_doc(self.raw_data['context'][i])
+      bm25 = BM25Okapi([txt.split() for txt in raw_context])
+      doc_scores = np.array(bm25.get_scores(self.raw_data['claim'][i].split()))
+      sort_idx = np.flip(np.argsort(doc_scores))
+      fact_list = [raw_context[idx] for idx in sort_idx[:top_k]]
       if self.raw_data['evidence'][i] in fact_list:
         correct += 1
       else:
@@ -85,5 +78,3 @@ class Visualization():
     result = pd.DataFrame({"Labels": ["Correct", "Wrong"], "Values": [correct, wrong]})
     result.plot.bar(x="Labels", y="Values")
     print("Độ chính xác khi dùng bm25 là:", accuracy * 100, "%")
-
-
