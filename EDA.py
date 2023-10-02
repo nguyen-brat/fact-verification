@@ -13,9 +13,12 @@ import collections
 class Visualization():
   def __init__(self,
                data_path):
+    '''
     self.data_paths = glob(data_path + '/*/*.json')
     self.raw_data = self.read_files(self.data_paths)
     self.raw_data = pd.DataFrame(self.raw_data)
+    '''
+    self.raw_data = pd.read_json(data_path).transpose().sort_index().reset_index()
     raw_context = self.raw_data['context'].map(self.split_doc)
     self.raw_context = []
     for i in range(len(raw_context)):
@@ -55,8 +58,8 @@ class Visualization():
     print("Số từ trung bình trong 1 claim:", np.mean(claim))
 
   def num_of_words_evidient(self):
-    evidient = list(self.raw_data['evidient'])
-    evidient = [len(x.split()) for x in evidient]
+    evidient = list(self.raw_data['evidence'])
+    evidient = [len(x.split()) for x in evidient if x != None]
     plt.hist(evidient, bins=list(range(max(evidient) + 1)))
     plt.show()
     print("Số từ trung bình trong 1 evidient:", np.mean(evidient))
@@ -82,4 +85,5 @@ class Visualization():
     result = pd.DataFrame({"Labels": ["Correct", "Wrong"], "Values": [correct, wrong]})
     result.plot.bar(x="Labels", y="Values")
     print("Độ chính xác khi dùng bm25 là:", accuracy * 100, "%")
+
 
