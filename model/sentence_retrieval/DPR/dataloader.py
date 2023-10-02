@@ -50,11 +50,6 @@ class dataloader(Dataset):
         self.data_paths = glob(data_path + '/*/*.json')
         self.raw_data = self.read_files(self.data_paths)
         self.raw_data = pd.DataFrame(self.raw_data)
-        raw_context = self.raw_data['context'].map(self.split_doc)
-        self.raw_context = []
-        for i in range(len(raw_context)):
-          self.raw_context.extend(raw_context[i])
-        self.raw_context = pd.Series(self.raw_context)
 
         if(shuffle):
           random.shuffle(self.data_paths)
@@ -64,7 +59,6 @@ class dataloader(Dataset):
         self.num_hard_negatives = num_hard_negatives
         self.num_other_negatives = num_other_negatives
         self.tokenize = tokenize
-        self.fit_context()
 
     @staticmethod
     def split_doc(graphs):
@@ -116,31 +110,6 @@ class dataloader(Dataset):
     def tokenizer(texts: List)->List:
         return [word_tokenize(text, format='text') for text in texts]
 
-    def fit_context(self):
-        self.clean_context = self.preprocess(self.raw_context)
-        if self.tokenize:
-            self.clean_context = self.tokenizer(self.clean_context)
-        self.bm25 = BM25Okapi([text.split() for text in self.clean_context])
-
-    def retrieval(self,
-            text:str,
-            top_k:int=10,
-            return_context:bool=False,
-    )->Tuple[List, List]:
-        '''
-        take a raw input text as query and
-        return index of accesding order of
-        relevant of context
-        '''
-        text = self._preprocess(text)
-        if self.tokenize:
-            text = word_tokenize(text, format='text')
-        doc_scores = np.array(self.bm25.get_scores(text.split()))
-        sort_idx = np.flip(np.argsort(doc_scores))
-        if return_context:
-            return [self.raw_context[idx] for idx in sort_idx[:top_k]]
-        return sort_idx, doc_scores
-
     def create_one_biencoder_input(
           self,
           idx: int = 0
@@ -150,10 +119,17 @@ class dataloader(Dataset):
         raw_data = pd.DataFrame(raw_data)
         claim_list = raw_data['claim'].to_list()
         positive_context_list = raw_data['evidient'].to_list()
+        context_list = raw_data['context'].map(self.split_doc)
+        raw_context = []
+        for i in range(len(context_list)):
+          raw_context.extend(context_list[i])
+        raw_context = pd.Series(raw_context)
+        bm25 = BM25Okapi([text.split() for text in raw_context])
 
         ctx = []
         for claim, positive_context in zip(claim_list, positive_context_list):
-              relevant_ctx_ids, _ = self.retrieval(claim)
+              doc_scores = np.array(bm25.get_scores(claim.split()))
+              relevant_ctx_ids = np.flip(np.argsort(doc_scores))
 
               # add positive context
               ctx_0 = []
@@ -161,13 +137,13 @@ class dataloader(Dataset):
 
               # add hard negatives
               hard_negatives = relevant_ctx_ids[:self.num_hard_negatives]
-              ctx_0.extend(self.raw_context[hard_negatives])
+              ctx_0.extend(raw_context[hard_negatives])
 
               # add other negatives
               other = relevant_ctx_ids[self.num_hard_negatives:]
               shuffle_other = self.generate_random_idx(len(other))
               shuffle_other_negatives = shuffle_other[:self.num_other_negatives]
-              ctx_0.extend(self.raw_context[shuffle_other_negatives])
+              ctx_0.extend(raw_context[shuffle_other_negatives])
 
               ctx.extend(ctx_0)
 
