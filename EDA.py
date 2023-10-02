@@ -77,7 +77,7 @@ class Visualization():
     wrong = 0
     for i in range(len(self.raw_data['claim'])):
       fact_list = self.bm25_retrieval(self.raw_data['claim'][i], top_k)
-      if self.raw_data['evidient'][i] in fact_list:
+      if self.raw_data['evidence'][i] in fact_list:
         correct += 1
       else:
         wrong += 1
