@@ -32,11 +32,11 @@ class Visualization():
 
   @staticmethod
   def split_doc(graphs):
-        graphs = re.sub(r'\n+', r'. ', graphs)
-        graphs = re.sub(r'\.+', r'.', graphs)
-        graphs = re.sub(r'\.', r'|.', graphs)
-        outputs = sent_tokenize(graphs)
-        return [output.rstrip('.').replace('|', '') for output in outputs]
+    graphs = re.sub(r'\n+', r'. ', graphs)
+    graphs = re.sub(r'\.+', r'.', graphs)
+    graphs = re.sub(r'\.', r'|.', graphs)
+    outputs = sent_tokenize(graphs)
+    return [output.rstrip('.').replace('|', '') for output in outputs]
 
   def num_of_sentences(self):
     context = list(self.raw_data['context'])
@@ -80,4 +80,47 @@ class Visualization():
     result = pd.DataFrame({"Labels": ["Correct", "Wrong"], "Values": [correct, wrong]})
     result.plot.bar(x="Labels", y="Values")
     print("Độ chính xác khi dùng bm25 là:", accuracy * 100, "%")
+
+  @staticmethod
+  def transform_input(input, vectorizer, tfidf_transform, vocabulary, k):
+    transform = vectorizer.fit_transform([input])
+    vectorize = np.zeros(shape = (1, len(vocabulary)))
+    tf = np.zeros(shape=(len(vocabulary)))
+    idx = np.array([vocabulary[word] for word in vectorizer.get_feature_names_out() if word in vocabulary.keys()])
+    for word, freq in zip(vectorizer.get_feature_names_out(), transform.toarray()[0]):
+        if word in vocabulary:
+            tf[vocabulary[word]] = freq
+    vectorize[0][idx] = tfidf_transform.idf_[idx]
+    vectorize[0] *= tf
+    return vectorize
+
+  def find_max(self, text, transform_output, vectorizer, tfidf_transform, vocabulary, k):
+    vectorize = self.transform_input(text, vectorizer, tfidf_transform, vocabulary, k)
+    similar = np.matmul(vectorize, np.transpose(transform_output.toarray()))/(norm(vectorize)*norm(transform_output.toarray(), axis = 1))
+    top_k = np.argpartition(similar.reshape(len(similar[0])), -k)[-k:]
+    return top_k
+
+  def tfidf_result(self, top_k):
+    correct = 0
+    wrong = 0
+    for i in range(len(self.raw_data['claim'])):
+      if self.raw_data['verdict'][i] != 'NEI':
+        raw_context = self.split_doc(self.raw_data['context'][i])
+        tfidf_transform = TfidfVectorizer(ngram_range = (1, 3))
+        vectorizer = CountVectorizer(ngram_range = (1, 3))
+        transform_output = tfidf_transform.fit_transform(raw_context)
+        vocabulary = dict(sorted(tfidf_transform.vocabulary_.items(), key=lambda x: x[0]))
+        if(top_k > len(raw_context)):
+          top_k = len(raw_context)
+        fact_list_idx = self.find_max(self.raw_data['claim'][i], transform_output, vectorizer, tfidf_transform, vocabulary, top_k)
+        fact_list = [raw_context[idx] for idx in fact_list_idx]
+        evidence = self.raw_data['evidence'][i].rstrip('.')
+        if evidence in fact_list:
+          correct += 1
+        else:
+          wrong += 1
+    accuracy = correct / (correct + wrong)
+    result = pd.DataFrame({"Labels": ["Correct", "Wrong"], "Values": [correct, wrong]})
+    result.plot.bar(x="Labels", y="Values")
+    print("Độ chính xác khi dùng tf-idf là:", accuracy * 100, "%")
 
