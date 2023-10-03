@@ -45,11 +45,12 @@ class DataAugmentation(Dataset):
     return SequenceMatcher(None, a, b).ratio()
 
   @staticmethod
-  def split_doc(graphs):
-    output = sent_tokenize(graphs)
-    in_element = list(map(lambda x:x[:-1].strip(), output[:-1]))
-    last_element = output[-1] if (output[-1][-1] != '.') else output[-1][-1].strip()
-    return in_element + [last_element]
+    def split_doc(graphs):
+        graphs = re.sub(r'\n+', r'. ', graphs)
+        graphs = re.sub(r'\.+', r'.', graphs)
+        graphs = re.sub(r'\.', r'|.', graphs)
+        outputs = sent_tokenize(graphs)
+        return [output.rstrip('.').replace('|', '') for output in outputs]
 
   def index_of_evidient(self):
     list_of_idx = []
