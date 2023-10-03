@@ -55,17 +55,17 @@ class RerankDataloaderConfig:
 class RerankDataloader(Dataset):
     def __init__(
             self,
-            data_path,
-            config:RerankDataloaderConfig,
+            data_path=['data/ise-dsc01-warmup.json'],
+            config:RerankDataloaderConfig=RerankDataloaderConfig(),
     ):
         self.config = config
         self.data_path = data_path
-        self.data_paths = glob(data_path + '/*/*.json')
+        self.raw_datas = self.read_files(data_path)
         if config.shuffle:
-            random.shuffle(self.data_paths)
+            random.shuffle(self.raw_datas)
 
     def __len__(self):
-        return len(self.data_paths)//self.config.batch_size
+        return len(self.raw_datas)//self.config.batch_size
 
 
     def __getitem__(self, idx):
@@ -81,7 +81,11 @@ class RerankDataloader(Dataset):
             positive_id = -1 # positive_id = -1 mean there if no positive id and label is NEI
             sample = []
             if inverse_relation[raw_batch.labels[i]] != "NEI":
-                positive_id = raw_batch.contexts.index(raw_batch.positive_passages[i])
+                try:
+                    positive_id = raw_batch.contexts.index(raw_batch.positive_passages[i])
+                except:
+                    positive_id = -1
+                    print(raw_batch.positive_passages[i])
                 sample.append(InputExample(texts=[query, raw_batch.positive_passages[i]], label=1))
             all_negative_index = self.retrieval(query,
                                                 bm25,
@@ -102,24 +106,23 @@ class RerankDataloader(Dataset):
     def create_crossencoder_samples(self, idx)->CrossEncoderSamples:
         id = idx*self.config.batch_size
         samples = CrossEncoderSamples
-        raw_data = self.read_files(self.data_paths[id:id+self.config.batch_size])
+        raw_data = self.raw_datas[id:id+self.config.batch_size]
 
         data = pd.DataFrame(raw_data)
-        #print(data['context'])
         data['context'] = data['context'].map(self.split_doc)
         data['verdict'] = data['verdict'].map(lambda x: relation[x])
 
         if self.config.remove_duplicate_context:
             contexts_set = set()
             for context in data['context'].to_list():
-                contexts_set.update(context)
+                contexts_set.update(context.tolist())
             contexts_set = list(contexts_set)
         else:
-            contexts_set = np.array(data['context'].to_list()).flatten().tolist()
+            contexts_set = np.concatenate(data['context'].to_list()).flatten().tolist()
 
         samples.contexts = contexts_set
         samples.query = data['claim'].to_list()
-        samples.positive_passages = data['evidient'].to_list()
+        samples.positive_passages = data['evidence'].to_list()
         samples.labels = data['verdict'].to_list()
 
         return samples
@@ -127,13 +130,15 @@ class RerankDataloader(Dataset):
     @staticmethod
     def create_neg_input(query, context):
         return InputExample(texts=[query, context], label=0)
-    @staticmethod
-    def split_doc(graphs):
+    
+
+    def split_doc(self, graphs):
         graphs = re.sub(r'\n+', r'. ', graphs)
         graphs = re.sub(r'\.+', r'.', graphs)
         graphs = re.sub(r'\.', r'|.', graphs)
         outputs = sent_tokenize(graphs)
-        return [output.rstrip('.').replace('|', '') for output in outputs]
+        outputs = [word_tokenize(output.rstrip('.').replace('|', ''), format='text') for output in outputs] if self.config.word_tokenize else [output.rstrip('.').replace('|', '') for output in outputs]
+        return np.array(outputs)
 
 
     def retrieval(self,
@@ -179,17 +184,26 @@ class RerankDataloader(Dataset):
 
 
     def read_files(self, paths):
-        results = list(map(self.read_file, paths))
+        results = []
+        for path in paths:
+            results += self.read_file(path)
         return results
 
 
     def read_file(self, file):
         with open(file, 'r') as f:
-            data = json.load(f)
-            if self.config.word_tokenize:
-                for key in ['context', 'claim', 'evidence']:
-                    data[key] = word_tokenize(data[key], format='text')
+            data = list(json.load(f).values())
+            data = list(map(self.preprocess, data))
         return data
+    
+
+    def preprocess(self, item:Dict):
+        for key in ['claim', 'evidence']:
+            item[key] = item[key].rstrip('.') if item[key] != None else item[key]
+            if self.config.word_tokenize:
+                item[key] = word_tokenize(item[key], format='text')
+        return item
+
     
     @staticmethod
     def n_gram(sentence, n=3):
