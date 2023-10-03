@@ -9,7 +9,6 @@ import numpy as np
 from enum import Enum
 import torch
 from rank_bm25 import BM25Okapi
-from underthesea import sent_tokenize, word_tokenize
 from ...reranking.dataloader import RerankDataloader, RerankDataloaderConfig, relation, inverse_relation
 
 

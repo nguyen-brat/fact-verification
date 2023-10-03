@@ -11,6 +11,7 @@ from glob import glob
 from rank_bm25 import BM25Okapi
 from underthesea import sent_tokenize, word_tokenize
 from nltk import ngrams
+import re
 
 relation = {
     "SUPPORTED":0,
@@ -58,6 +59,7 @@ class RerankDataloader(Dataset):
             config:RerankDataloaderConfig,
     ):
         self.config = config
+        self.data_path = data_path
         self.data_paths = glob(data_path + '/*/*.json')
         if config.shuffle:
             random.shuffle(self.data_paths)
@@ -127,14 +129,11 @@ class RerankDataloader(Dataset):
         return InputExample(texts=[query, context], label=0)
     @staticmethod
     def split_doc(graphs):
-        '''
-        because then use underthesea sent_token it still have . in the end of sentence so
-        we have to remove it
-        '''
-        output = sent_tokenize(graphs)
-        in_element = list(map(lambda x:x[:-1].strip(), output[:-1]))
-        last_element = output[-1] if (output[-1][-1] != '.') else output[-1][-1].strip()
-        return in_element + [last_element]
+        graphs = re.sub(r'\n+', r'. ', graphs)
+        graphs = re.sub(r'\.+', r'.', graphs)
+        graphs = re.sub(r'\.', r'|.', graphs)
+        outputs = sent_tokenize(graphs)
+        return [output.rstrip('.').replace('|', '') for output in outputs]
 
 
     def retrieval(self,
@@ -188,7 +187,7 @@ class RerankDataloader(Dataset):
         with open(file, 'r') as f:
             data = json.load(f)
             if self.config.word_tokenize:
-                for key in ['context', 'claim', 'evidient']:
+                for key in ['context', 'claim', 'evidence']:
                     data[key] = word_tokenize(data[key], format='text')
         return data
     

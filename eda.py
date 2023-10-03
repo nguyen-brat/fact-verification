@@ -60,11 +60,6 @@ class Visualization:
                     correct += 1
                 else:
                     wrong += 1
-                    print('---------------------------')
-                    print(self.raw_data['claim'][i])
-                    print(evident)
-                    print(fact_list)
-                    print('---------------------------')
         accuracy = correct / (correct + wrong)
         result = pd.DataFrame({"Labels": ["Correct", "Wrong"], "Values": [correct, wrong]})
         result.plot.bar(x="Labels", y="Values")
