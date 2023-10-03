@@ -176,6 +176,7 @@ class CrossEncoder():
         if not save_best_model:
             self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
+        self.tokenizer.save_pretrained(output_path)
         return train_loss_list, acc_list
 
     def val_evaluation(self,
