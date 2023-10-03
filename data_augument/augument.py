@@ -11,6 +11,7 @@ from transformers import MT5Tokenizer, MT5ForConditionalGeneration
 from underthesea import sent_tokenize
 from googletrans import Translator
 from difflib import SequenceMatcher
+import re
 
 class DataAugmentation(Dataset):
   def __init__(self,
