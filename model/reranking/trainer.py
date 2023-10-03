@@ -75,7 +75,7 @@ def parse_args():
     parser.add_argument("--model", default='amberoad/bert-multilingual-passage-reranking-msmarco', type=str)
     parser.add_argument("--max_length", default=512, type=int)
     parser.add_argument("--num_label", default=2, type=int)
-    parser.add_argument("--train_data_path", default='dump_data/train', type=str)
+    parser.add_argument("--train_data_path", default='data/ise-dsc01-warmup.json', type=str)
     parser.add_argument("--val_data_path", default=None, type=str)
     parser.add_argument("--num_hard_negatives", default=1, type=int)
     parser.add_argument("--num_other_negatives", default=1, type=int)

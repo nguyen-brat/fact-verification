@@ -60,7 +60,7 @@ class RerankDataloader(Dataset):
     ):
         self.config = config
         self.data_path = data_path
-        self.raw_datas = self.read_files(data_path)
+        self.raw_datas = self.read_file(data_path)
         if config.shuffle:
             random.shuffle(self.raw_datas)
 
@@ -85,7 +85,6 @@ class RerankDataloader(Dataset):
                     positive_id = raw_batch.contexts.index(raw_batch.positive_passages[i])
                 except:
                     positive_id = -1
-                    print(raw_batch.positive_passages[i])
                 sample.append(InputExample(texts=[query, raw_batch.positive_passages[i]], label=1))
             all_negative_index = self.retrieval(query,
                                                 bm25,
