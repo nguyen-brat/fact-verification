@@ -249,7 +249,7 @@ def parse_args():
     parser.add_argument("--model", default='keepitreal/vietnamese-sbert', type=str)
     parser.add_argument("--max_length", default=256, type=int)
     parser.add_argument("--num_label", default=2, type=int)
-    parser.add_argument("--train_data_path", default='dump_data/train', type=str)
+    parser.add_argument("--train_data_path", default='data/ise-dsc01-warmup.json', type=str)
     parser.add_argument("--val_data_path", default=None, type=str)
     parser.add_argument("--num_hard_negatives", default=4, type=int)
     parser.add_argument("--shuffle", default=True, action=argparse.BooleanOptionalAction)
