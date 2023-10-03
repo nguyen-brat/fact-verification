@@ -9,6 +9,9 @@ from underthesea import sent_tokenize
 import re
 from rank_bm25 import BM25Okapi
 import collections
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
+from numpy.linalg import norm
 
 class Visualization():
   def __init__(self,
@@ -72,10 +75,16 @@ class Visualization():
         doc_scores = np.array(bm25.get_scores(self.raw_data['claim'][i].split()))
         sort_idx = np.flip(np.argsort(doc_scores))
         fact_list = [raw_context[idx] for idx in sort_idx[:top_k]]
-        if self.raw_data['evidence'][i] in fact_list:
+        evidence = self.raw_data['evidence'][i].rstrip('.')
+        if evidence in fact_list:
           correct += 1
         else:
           wrong += 1
+          print('---------------------------')
+          print(self.raw_data['claim'][i])
+          print(evident)
+          print(fact_list)
+          print('---------------------------')
     accuracy = correct / (correct + wrong)
     result = pd.DataFrame({"Labels": ["Correct", "Wrong"], "Values": [correct, wrong]})
     result.plot.bar(x="Labels", y="Values")
@@ -119,6 +128,11 @@ class Visualization():
           correct += 1
         else:
           wrong += 1
+          print('---------------------------')
+          print(self.raw_data['claim'][i])
+          print(evident)
+          print(fact_list)
+          print('---------------------------')
     accuracy = correct / (correct + wrong)
     result = pd.DataFrame({"Labels": ["Correct", "Wrong"], "Values": [correct, wrong]})
     result.plot.bar(x="Labels", y="Values")
