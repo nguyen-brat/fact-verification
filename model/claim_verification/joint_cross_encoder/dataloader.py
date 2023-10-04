@@ -59,8 +59,11 @@ class FactVerifyDataloader(RerankDataloader):
             sample = []
             if inverse_relation[raw_batch.labels[i]] != "NEI":
                 sample.append(raw_batch.positive_passages[i])
-                positive_id = raw_batch.contexts.index(raw_batch.positive_passages[i])
-            ohot_positive_id = F.one_hot(torch.tensor(positive_id), num_classes=batch.fact_per_claim).tolist() if positive_id != -1 else [0]*batch.fact_per_claim
+                try:
+                    positive_id = raw_batch.contexts.index(raw_batch.positive_passages[i])
+                except:
+                    positive_id = -1
+            ohot_positive_id = F.one_hot(torch.tensor(positive_id), num_classes=len(batch.contexts)).tolist() if positive_id != -1 else [0]*len(batch.contexts)
             all_negative_index = self.retrieval(query,
                                                 bm25,
                                                 positive_id,
