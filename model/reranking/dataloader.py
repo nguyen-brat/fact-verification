@@ -55,7 +55,7 @@ class RerankDataloaderConfig:
 class RerankDataloader(Dataset):
     def __init__(
             self,
-            data_path=['data/ise-dsc01-warmup.json'],
+            data_path='data/ise-dsc01-warmup.json',
             config:RerankDataloaderConfig=RerankDataloaderConfig(),
     ):
         self.config = config
@@ -94,7 +94,6 @@ class RerankDataloader(Dataset):
 
             #print(f'num negative sample {len(all_negative_index)}')
             sample += list(map(lambda x, y: self.create_neg_input(x, y), [query]*all_negative_index.shape[0], np.array(raw_batch.contexts)[all_negative_index].tolist()))
-            #print(f'one sample len is: {len(sample)}')
             if self.config.shuffle_positives:
                 random.shuffle(sample)
             result += sample

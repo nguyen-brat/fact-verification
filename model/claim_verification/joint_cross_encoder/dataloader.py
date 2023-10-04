@@ -1,5 +1,6 @@
 from torch.utils.data import Dataset
 import torch.nn.functional as F
+import sys
 import collections
 import glob
 import logging
@@ -33,7 +34,7 @@ class FactVerificationBatch(object):
 class FactVerifyDataloader(RerankDataloader):
     def __init__(
             self,
-            data_path,
+            data_path='data/ise-dsc01-warmup.json',
             config:RerankDataloaderConfig=RerankDataloaderConfig(4,0),
     ):
         super().__init__(data_path=data_path, config=config)
@@ -63,7 +64,7 @@ class FactVerifyDataloader(RerankDataloader):
                     positive_id = raw_batch.contexts.index(raw_batch.positive_passages[i])
                 except:
                     positive_id = -1
-            ohot_positive_id = F.one_hot(torch.tensor(positive_id), num_classes=len(batch.contexts)).tolist() if positive_id != -1 else [0]*len(batch.contexts)
+            ohot_positive_id = F.one_hot(torch.tensor(0), num_classes=batch.fact_per_claim).tolist() if positive_id != -1 else [0]*batch.fact_per_claim
             all_negative_index = self.retrieval(query,
                                                 bm25,
                                                 positive_id,
