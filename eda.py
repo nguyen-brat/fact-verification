@@ -58,7 +58,16 @@ class Visualization:
                 evident = evident.rstrip('.')
                 if evident in fact_list:
                     correct += 1
+                    if fact_list.index(evident) == 1:
+                        print('--------------------------')
+                        print(self.raw_data['claim'][i])
+                        print(evident)
+                        print(fact_list)
                 else:
+                    # print('--------------------------')
+                    # print(self.raw_data['claim'][i])
+                    # print(evident)
+                    # print(fact_list)
                     wrong += 1
         accuracy = correct / (correct + wrong)
         result = pd.DataFrame({"Labels": ["Correct", "Wrong"], "Values": [correct, wrong]})

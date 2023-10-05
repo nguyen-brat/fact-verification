@@ -102,7 +102,7 @@ class JointCrossEncoderTrainer:
         if loss_fct:
             multi_loss_fct, binary_loss_fct = loss_fct[1], loss_fct[0]
         else:
-            multi_loss_fct, binary_loss_fct = nn.CrossEntropyLoss(), nn.BCEWithLogitsLoss()
+            multi_loss_fct, binary_loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.4, 0.2, 0.4]).to(self.device)), nn.BCEWithLogitsLoss()
 
         if val_dataloader == None:
             self.model, optimizer, scheduler, train_dataloader = self.accelerator.prepare(self.model, optimizer, scheduler, train_dataloader)
@@ -124,6 +124,7 @@ class JointCrossEncoderTrainer:
             self.model.train()
 
             for fact_claims_ids, labels, is_positive, is_positive_ohot in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
+                a = 1 + 1
                 multi_evident_logits, single_evident_logits, positive_logits = self.model(fact_claims_ids, is_positive)
                 if self.config.num_labels == 1:
                     logits = logits.view(-1)
@@ -165,6 +166,7 @@ class JointCrossEncoderTrainer:
             self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
         return train_loss_list, acc_list
+        return None
     
     def val_evaluation(self,
                        val_dataloader,
@@ -217,7 +219,7 @@ def main(args):
         multi_loss_fct = torch.hub.load(
             'adeelh/pytorch-multi-class-focal-loss',
             model='focal_loss',
-            alpha=[.33, .33, .33],
+            alpha=[.4, .2, .4],
             gamma=2,
             reduction='mean',
             device=args.device,
@@ -225,12 +227,12 @@ def main(args):
             force_reload=False
         )
         loss_fct = [binary_loss_fct, multi_loss_fct]
-        
-    trainer = JointCrossEncoderTrainer(config=JointCrossEncoderConfig(
+    model_config = JointCrossEncoderConfig(
         model=args.model,
         nins=args.num_hard_negatives+1,
-        max_length=args.max_length,
-    ))
+    )
+    model_config.max_length = args.max_length
+    trainer = JointCrossEncoderTrainer(config=model_config)
     warnmup_step = math.ceil(len(train_dataloader) * 10 * 0.1)
     trainer(
         train_dataloader=train_dataloader,

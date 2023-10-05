@@ -124,12 +124,12 @@ class JointCrossEncoderConfig(PretrainedConfig):
                  model='amberoad/bert-multilingual-passage-reranking-msmarco', # feature extractor model
                  max_length=256,
                  **kwargs):
+        self.max_length = max_length
         self.nins = nins
         self.nclass = nclass
         self.nlayer = nlayer
         self.pool = pool
         self.model = model
-        self.max_length = max_length
         super().__init__(**kwargs)
     
         
