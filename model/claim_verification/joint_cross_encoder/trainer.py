@@ -7,13 +7,14 @@ import torch
 import torch.nn as nn
 from torch.optim import Optimizer
 import torch.nn.functional as F
-from torcheval.metrics import MulticlassF1Score, BinaryF1Score
+from torcheval.metrics import MulticlassF1Score, BinaryF1Score, MulticlassConfusionMatrix
 import argparse
 import math
 from typing import Type, Dict, List
 import os
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
+from sklearn.metrics import confusion_matrix
 
 class BinaryFocalLoss(nn.Module):
     def __init__(self, alpha=0.25, gamma=2):
@@ -113,10 +114,7 @@ class JointCrossEncoderTrainer:
         train_loss_list = []
         acc_list = []
 
-        if self.config.num_labels == 1:
-            metrics = BinaryF1Score()
-        else:
-            metrics = MulticlassF1Score(num_classes=self.config.num_labels)
+        metrics = [MulticlassF1Score(num_classes=3), MulticlassConfusionMatrix(num_classes=3)]
 
         for epoch in range(epochs):
             print(f'epoch {epoch}/{epochs} ')
@@ -125,13 +123,11 @@ class JointCrossEncoderTrainer:
 
             for fact_claims_ids, labels, is_positive, is_positive_ohot in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
                 multi_evident_logits, single_evident_logits, positive_logits = self.model(fact_claims_ids, is_positive)
-                if self.config.num_labels == 1:
-                    logits = logits.view(-1)
                 multi_evident_loss_value = multi_loss_fct(multi_evident_logits, labels)
                 single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
                 #is_positive_loss_value = binary_loss_fct(positive_logits, is_positive_ohot)
                 #loss_value = (multi_evident_loss_value + single_evident_loss_value + is_positive_loss_value)/3
-                loss_value = (multi_evident_loss_value + multi_evident_loss_value)/2
+                loss_value = (multi_evident_loss_value + single_evident_loss_value)/2
                 self.accelerator.backward(loss_value)
                 optimizer.step()
                 optimizer.zero_grad()
@@ -157,7 +153,7 @@ class JointCrossEncoderTrainer:
 
             self.accelerator.print(f'loss value is {loss_value.item()}')
             self.accelerator.print(f'multiple evident loss value is {multi_evident_loss_value.item()}')
-            #self.accelerator.print(f'single evident loss value is {single_evident_loss_value.item()}')
+            self.accelerator.print(f'single evident loss value is {single_evident_loss_value.item()}')
             #self.accelerator.print(f'positive loss value is {is_positive_loss_value.item()}')
             train_loss_list.append(loss_value.item())
             self.accelerator.wait_for_everyone()
@@ -176,10 +172,9 @@ class JointCrossEncoderTrainer:
         with torch.no_grad():
             for feature, label in val_dataloader:
                 logits = self.model(**feature, return_dict=True).logits
-                if self.config.num_labels == 1:
-                    logits = logits.view(-1)
-                metrics.update(logits, label)
-        return metrics.compute()
+                for metric in metrics:
+                    metric.update(logits, label)
+        return [metric.compute() for metric in metrics]
     
     def save_during_training(self, output_path):
         unwrapped_model = self.accelerator.unwrap_model(self.model)
@@ -196,7 +191,7 @@ class JointCrossEncoderTrainer:
             model_path='model/claim_verification/joint_cross_encoder/saved_model',
             model_name='reranking_join_encoder',
     ):
-        model = JointCrossEncoder(model_path)
+        model = JointCrossEncoder.from_pretrained(model_path)
         model.push_to_hub(model_name, token='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')
         self.tokenizer.push_to_hub(model_name, token='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')
     
