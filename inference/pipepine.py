@@ -1,5 +1,5 @@
 from model.sentence_retrieval.DPR.model import BiEncoder
-from model.reranking.model import CrossEncoder
+from model.reranking.cross_encoder.model import CrossEncoder
 from underthesea import word_tokenize, sent_tokenize
 from model.claim_verification.gear.model import FactVerification
 from model.claim_verification.gear.dataloader import FactVerificationBatch

@@ -9,7 +9,7 @@ import numpy as np
 from enum import Enum
 import torch
 from rank_bm25 import BM25Okapi
-from ...reranking.dataloader import RerankDataloader, RerankDataloaderConfig, relation, inverse_relation
+from ...reranking.cross_encoder.dataloader import RerankDataloader, RerankDataloaderConfig, relation, inverse_relation
 
 
 class CrossEncoderSamples(object):

@@ -1,4 +1,4 @@
-from model.reranking.trainer import rerank_run
+from model.reranking.cross_encoder.trainer import rerank_run
 from model.claim_verification.gear.trainer import fact_verify_run
 from model.claim_verification.joint_cross_encoder.trainer import join_fact_verify_run
 
