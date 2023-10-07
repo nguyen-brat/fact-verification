@@ -258,7 +258,7 @@ def parse_args():
     Parse arguments from command line.
     """
     parser = argparse.ArgumentParser(description="Arguments for rerank Trainning")
-    parser.add_argument("--model", default='keepitreal/vietnamese-sbert', type=str)
+    parser.add_argument("--model", default='amberoad/bert-multilingual-passage-reranking-msmarco', type=str)
     parser.add_argument("--max_length", default=256, type=int)
     parser.add_argument("--num_label", default=2, type=int)
     parser.add_argument("--train_data_path", default='data/raw_data/ise-dsc01-warmup.json', type=str)
