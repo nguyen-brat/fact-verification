@@ -60,7 +60,7 @@ class RerankDataloader(Dataset):
     ):
         self.config = config
         self.data_path = data_path
-        self.raw_datas = self.read_file(data_path)
+        self.raw_datas = self.read_files(data_path)
         if config.shuffle:
             random.shuffle(self.raw_datas)
 

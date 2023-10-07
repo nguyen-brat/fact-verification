@@ -129,9 +129,10 @@ class JointCrossEncoderTrainer:
                 if self.config.num_labels == 1:
                     logits = logits.view(-1)
                 multi_evident_loss_value = multi_loss_fct(multi_evident_logits, labels)
-                single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
-                is_positive_loss_value = binary_loss_fct(positive_logits, is_positive_ohot)
-                loss_value = (multi_evident_loss_value + single_evident_loss_value + is_positive_loss_value)/3
+                #single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
+                #is_positive_loss_value = binary_loss_fct(positive_logits, is_positive_ohot)
+                #loss_value = (multi_evident_loss_value + single_evident_loss_value + is_positive_loss_value)/3
+                loss_value = multi_evident_loss_value
                 self.accelerator.backward(loss_value)
                 optimizer.step()
                 optimizer.zero_grad()
@@ -157,16 +158,17 @@ class JointCrossEncoderTrainer:
 
             self.accelerator.print(f'loss value is {loss_value.item()}')
             self.accelerator.print(f'multiple evident loss value is {multi_evident_loss_value.item()}')
-            self.accelerator.print(f'single evident loss value is {single_evident_loss_value.item()}')
-            self.accelerator.print(f'positive loss value is {is_positive_loss_value.item()}')
+            #self.accelerator.print(f'single evident loss value is {single_evident_loss_value.item()}')
+            #self.accelerator.print(f'positive loss value is {is_positive_loss_value.item()}')
             train_loss_list.append(loss_value.item())
             self.accelerator.wait_for_everyone()
 
         if not save_best_model:
             self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
+        self.save_to_hub()
+
         return train_loss_list, acc_list
-        return None
     
     def val_evaluation(self,
                        val_dataloader,
@@ -189,6 +191,15 @@ class JointCrossEncoderTrainer:
             state_dict=self.accelerator.get_state_dict(self.model),
         )
         self.tokenizer.save_pretrained(output_path)
+
+    def save_to_hub(
+            self,
+            model_path='model/claim_verification/joint_cross_encoder/saved_model',
+            model_name='reranking_join_encoder',
+    ):
+        model = JointCrossEncoder(model_path)
+        model.push_to_hub(model_name, token='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')
+        self.tokenizer.push_to_hub(model_name, token='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')
     
 
 def main(args):
