@@ -102,7 +102,7 @@ class JointCrossEncoderTrainer:
         if loss_fct:
             multi_loss_fct, binary_loss_fct = loss_fct[1], loss_fct[0]
         else:
-            multi_loss_fct, binary_loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.4, 0.2, 0.4]).to(self.device)), nn.BCEWithLogitsLoss()
+            multi_loss_fct, binary_loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.1, 0.8, 0.1]).to(self.device)), nn.BCEWithLogitsLoss()
 
         if val_dataloader == None:
             self.model, optimizer, scheduler, train_dataloader = self.accelerator.prepare(self.model, optimizer, scheduler, train_dataloader)
@@ -124,15 +124,14 @@ class JointCrossEncoderTrainer:
             self.model.train()
 
             for fact_claims_ids, labels, is_positive, is_positive_ohot in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
-                a = 1 + 1
                 multi_evident_logits, single_evident_logits, positive_logits = self.model(fact_claims_ids, is_positive)
                 if self.config.num_labels == 1:
                     logits = logits.view(-1)
                 multi_evident_loss_value = multi_loss_fct(multi_evident_logits, labels)
-                #single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
+                single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
                 #is_positive_loss_value = binary_loss_fct(positive_logits, is_positive_ohot)
                 #loss_value = (multi_evident_loss_value + single_evident_loss_value + is_positive_loss_value)/3
-                loss_value = multi_evident_loss_value
+                loss_value = (multi_evident_loss_value + multi_evident_loss_value)/2
                 self.accelerator.backward(loss_value)
                 optimizer.step()
                 optimizer.zero_grad()
@@ -267,7 +266,7 @@ def parse_args():
     parser.add_argument("--num_hard_negatives", default=4, type=int)
     parser.add_argument("--shuffle", default=True, action=argparse.BooleanOptionalAction)
     parser.add_argument("--shuffle_positives", default=True, action=argparse.BooleanOptionalAction)
-    parser.add_argument("--batch_size", default=16, type=int)
+    parser.add_argument("--batch_size", default=8, type=int)
     parser.add_argument("--remove_duplicate_context", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--epochs", default=30, type=int)
     parser.add_argument("--use_focal_loss", default=False, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
