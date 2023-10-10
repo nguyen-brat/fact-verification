@@ -18,6 +18,7 @@ class CleanData:
         with open(data_path, 'r') as f:
             self.raw_data = json.load(f)
 
+    
     def __call__(self, k=5, output_path=r'data/clean_data/train.json'):
         result = {}
         for key in self.raw_data.keys():
@@ -32,68 +33,61 @@ class CleanData:
         '''
         if the evident not in top 5 result return from the bm25
         we will remove that sample from training data
+        every sample have evident not in top k will be removed
         '''
         result = {}
-        raw_contexts = self.split_doc(sample['context'])
-        bm25 = BM25Okapi([self.n_gram(txt) for txt in raw_contexts])
-        claim = self.preprocess_text(sample['claim'])
-        doc_scores = np.array(bm25.get_scores(self.n_gram(claim)))
-        sort_idx = np.flip(np.argsort(doc_scores))
-        fact_list = np.array(raw_contexts)[sort_idx][:k].tolist()
+        fact_list, _ = self.bm25(sample['claim'], sample['context'], k=k)
         if sample['evidence']:
             evident = self.preprocess_text(sample['evidence'])
             if evident in fact_list:
-                result["context"] = raw_contexts
-                result["claim"] = claim
+                result["context"] = sample['context']
+                result["claim"] = self.preprocess_text(sample['claim'])
                 result["verdict"] = sample["verdict"]
                 result["evidence"] = evident
                 result["domain"] = sample["domain"]
                 result["facts_list"] = fact_list
         else:
             result["verdict"] = sample["verdict"] # equal null
-            result["claim"] = claim
-            result["context"] = raw_contexts
+            result["claim"] = self.preprocess_text(sample['claim'])
+            result["context"] = sample['context']
             result["domain"] = sample["domain"]
             result["facts_list"] = fact_list
             result["evidence"] = sample["evidence"]
         return result
     
+    
     def split_doc(self, graphs):
+        '''
+        graphs not need to be cleaned
+        '''
         graphs = re.sub(r'\.{3}\,', r' ', graphs)
         for match in re.finditer(r"(\d\.\d|)(\w\.\w)", graphs):
             graphs = graphs[:match.span()[0]+1] + '|' + graphs[match.span()[1]-1:]
         outputs = graphs.split('.')
         return [self.preprocess_text(output.replace('|', '.')) for output in outputs if output != '']
 
-
-    def retrieval(self,
-            query:str,
-            bm25:BM25Okapi,
-            positive_id:int,# id of positive sample in batch
-            hard:int=5, # number of hard negative sample
-            easy:int=10, # number of easy negative sample
-            easy_sample_pivot:int=20,
-    )->np.ndarray:
+    
+    def bm25(self, claim:str, document:str, k=5):
         '''
-        take query and bm25 object of batch context
-        return index of top hard negative sample and easy negative sample in batch
+        take claim and a str document return the most relevant sentence
+        claim not need to be clean
+        return the k most relevant sentence and the score of top k sentence
         '''
-        if not self.config.word_tokenize:
-            query = word_tokenize(query, format='text')
-        scores = bm25.get_scores(self.n_gram(query))
-        sorted_index = np.argsort(scores)
+        claim = self.preprocess_text(claim)
+        sentences = self.split_doc(document)
+        bm25 = BM25Okapi([self.n_gram(sentence) for sentence in sentences])
+        doc_scores = np.array(bm25.get_scores(self.n_gram(claim)))
+        sort_idx = np.flip(np.argsort(doc_scores))
+        fact_list = np.array(sentences)[sort_idx].tolist()[:k]
+        return fact_list, doc_scores[:k]
+    
 
-        extra_neg_sample = 1 # it will add a extra easy negative sample if there is no positive answer
-        len_context = len(scores)
-        easy_sample_pivot = easy_sample_pivot if (len_context - easy_sample_pivot) > (easy + extra_neg_sample) else (len_context - easy - extra_neg_sample)
-        # remove positive id in the sorted id list because this create negative id sample for training
-        if positive_id != -1:
-            extra_neg_sample = 0
-            ids_of_positive_id = np.where(sorted_index == positive_id)
-            sorted_index = np.delete(sorted_index, ids_of_positive_id)
-        easy_sample_index = sorted_index[easy_sample_pivot:easy_sample_pivot+easy+extra_neg_sample]
-        hard_sample_index = sorted_index[:hard]
-        return np.concatenate([easy_sample_index, hard_sample_index])
+    def tfidf(
+            self,
+            claim,
+            document,
+    ):
+        pass
 
 
     def list_sentence_tokenize(self, inputs:List[str])->List[List[str]]:
@@ -137,6 +131,7 @@ class CleanData:
             ngram = ngrams(sentence.split(), gram)
             result += map(lambda x: '_'.join(x), ngram)
         return result
+    
     
     @staticmethod
     def preprocess_text(text: str) -> str:    
