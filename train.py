@@ -7,4 +7,6 @@ if __name__ == "__main__":
     #rerank_run()
     #fact_verify_run()
     #join_fact_verify_run()
+    pipe = Pipeline()
+    pipe.output_file()
     pass
