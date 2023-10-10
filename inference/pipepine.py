@@ -1,6 +1,5 @@
 from model.reranking.cross_encoder.model import CrossEncoder
 from model.claim_verification.joint_cross_encoder.model import JointCrossEncoder
-from model.claim_verification.gear.dataloader import FactVerificationBatch
 from data_preprocess.clean_data.preprocess import CleanData
 from transformers import AutoTokenizer
 import torch
@@ -33,7 +32,7 @@ class Pipeline(CleanData):
             fact_check='nguyen-brat/fact_verify'
     ):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.reranking_model = CrossEncoder(reranking)
+        self.reranking_model = CrossEncoder(reranking, num_labels=2)
         self.fact_verification_model = JointCrossEncoder.from_pretrained(fact_check)
         self.fact_verification_tokenizer = AutoTokenizer.from_pretrained(fact_check)
     
