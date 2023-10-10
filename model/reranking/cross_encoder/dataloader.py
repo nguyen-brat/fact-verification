@@ -130,13 +130,19 @@ class RerankDataloader(Dataset):
         return InputExample(texts=[query, context], label=0)
     
 
+    # def split_doc(self, graphs):
+    #     graphs = re.sub(r'\n+', r'. ', graphs)
+    #     graphs = re.sub(r'\.+', r'.', graphs)
+    #     graphs = re.sub(r'\.', r'|.', graphs)
+    #     outputs = sent_tokenize(graphs)
+    #     outputs = [word_tokenize(output.rstrip('.').replace('|', ''), format='text') for output in outputs] if self.config.word_tokenize else [output.rstrip('.').replace('|', '') for output in outputs]
+    #     return np.array(outputs)
+
     def split_doc(self, graphs):
-        graphs = re.sub(r'\n+', r'. ', graphs)
-        graphs = re.sub(r'\.+', r'.', graphs)
-        graphs = re.sub(r'\.', r'|.', graphs)
-        outputs = sent_tokenize(graphs)
-        outputs = [word_tokenize(output.rstrip('.').replace('|', ''), format='text') for output in outputs] if self.config.word_tokenize else [output.rstrip('.').replace('|', '') for output in outputs]
-        return np.array(outputs)
+        for match in re.finditer(r"\d\.\d", graphs):
+            graphs = graphs[:match.span()[0]+1] + '|' + graphs[match.span()[1]-1:]
+        outputs = graphs.split('.')
+        return [self.preprocess_text(output.replace('|', '.')) for output in outputs]
 
 
     def retrieval(self,

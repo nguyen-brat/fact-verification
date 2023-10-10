@@ -10,18 +10,60 @@ import numpy as np
 class CleanData:
     def __init__(
             self,
-            data_paths,
+            data_path='ise-dsc01-train.json',
+            tokenize=False,
     ):
-        self.data_path = data_paths
+        self.data_path = data_path
+        self.tokenize = tokenize
+        with open(data_path, 'r') as f:
+            self.raw_data = json.load(f)
 
+    def __call__(self, k=5, output_path=r'data/clean_data/train.json'):
+        result = {}
+        for key in self.raw_data.keys():
+            clean_sample = self.clean(self.raw_data[key])
+            if clean_sample != {}:
+                result[key] = clean_sample
+        with open(output_path, 'w') as f:
+            json.dump(result, f, ensure_ascii=False, indent=4)
+
+
+    def clean(self, sample, k=5):
+        '''
+        if the evident not in top 5 result return from the bm25
+        we will remove that sample from training data
+        '''
+        result = {}
+        raw_contexts = self.split_doc(sample['context'])
+        bm25 = BM25Okapi([self.n_gram(txt) for txt in raw_contexts])
+        claim = self.preprocess_text(sample['claim'])
+        doc_scores = np.array(bm25.get_scores(self.n_gram(claim)))
+        sort_idx = np.flip(np.argsort(doc_scores))
+        fact_list = np.array(raw_contexts)[sort_idx][:k].tolist()
+        if sample['evidence']:
+            evident = self.preprocess_text(sample['evidence'])
+            if evident in fact_list:
+                result["context"] = raw_contexts
+                result["claim"] = claim
+                result["verdict"] = sample["verdict"]
+                result["evidence"] = evident
+                result["domain"] = sample["domain"]
+                result["facts_list"] = fact_list
+        else:
+            result["verdict"] = sample["verdict"] # equal null
+            result["claim"] = claim
+            result["context"] = raw_contexts
+            result["domain"] = sample["domain"]
+            result["facts_list"] = fact_list
+            result["evidence"] = sample["evidence"]
+        return result
     
     def split_doc(self, graphs):
-        graphs = re.sub(r'\n+', r'. ', graphs)
-        graphs = re.sub(r'\.+', r'.', graphs)
-        graphs = re.sub(r'\.', r'|.', graphs)
-        outputs = sent_tokenize(graphs)
-        outputs = [word_tokenize(output.rstrip('.').replace('|', ''), format='text') for output in outputs] if self.config.word_tokenize else [output.rstrip('.').replace('|', '') for output in outputs]
-        return np.array(outputs)
+        graphs = re.sub(r'\.{3}\,', r' ', graphs)
+        for match in re.finditer(r"(\d\.\d|)(\w\.\w)", graphs):
+            graphs = graphs[:match.span()[0]+1] + '|' + graphs[match.span()[1]-1:]
+        outputs = graphs.split('.')
+        return [self.preprocess_text(output.replace('|', '.')) for output in outputs if output != '']
 
 
     def retrieval(self,
@@ -95,3 +137,11 @@ class CleanData:
             ngram = ngrams(sentence.split(), gram)
             result += map(lambda x: '_'.join(x), ngram)
         return result
+    
+    @staticmethod
+    def preprocess_text(text: str) -> str:    
+        text = re.sub(r"['\",\?:\-!]", "", text)
+        text = text.strip()
+        text = " ".join(text.split())
+        text = text.lower()
+        return text
