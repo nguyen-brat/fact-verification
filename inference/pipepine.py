@@ -107,4 +107,5 @@ class Pipeline(CleanData):
 
 if __name__ == "__main__":
     pipe = Pipeline()
+    pipe.output_file()
     
