@@ -39,7 +39,8 @@ class CleanData:
         fact_list, _ = self.bm25(sample['claim'], sample['context'], k=k)
         if sample['evidence']:
             evident = self.preprocess_text(sample['evidence'])
-            if evident in fact_list:
+            if (evident in fact_list) and (self.preprocess_text(sample['claim'] not in fact_list)):
+                fact_list.remove(evident)
                 result["context"] = sample['context']
                 result["claim"] = self.preprocess_text(sample['claim'])
                 result["verdict"] = sample["verdict"]

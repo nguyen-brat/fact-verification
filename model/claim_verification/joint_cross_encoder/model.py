@@ -175,11 +175,11 @@ class JointCrossEncoder(PreTrainedModel):
             inputs, # dictionary of input id, mask attention, type_ids of claims and facts
     ):
         with torch.no_grad():
-            inputs_embed = self.feature_extractor(inputs).unsqueeze()
+            inputs_embed = self.feature_extractor(inputs).unsqueeze(dim=0)
             for evident_aggrerator in self.evident_aggrerators:
                 inputs_embed = evident_aggrerator(*[inputs_embed]*3)[0]
             multi_evident_logits = self.aggerator(*[inputs_embed]*3).squeeze() # (n_labels)
-        return F.softmax(multi_evident_logits) 
+        return F.softmax(multi_evident_logits, dim=-1) 
 
 
     

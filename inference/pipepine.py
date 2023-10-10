@@ -1,4 +1,4 @@
-from model.reranking.cross_encoder.model import CrossEncoder
+from sentence_transformers import CrossEncoder
 from model.claim_verification.joint_cross_encoder.model import JointCrossEncoder
 from data_preprocess.clean_data.preprocess import CleanData
 from transformers import AutoTokenizer
@@ -6,6 +6,7 @@ import torch
 import numpy as np
 from typing import List, Union, Tuple
 import json
+from tqdm import tqdm
 
 
 relation = {
@@ -29,11 +30,12 @@ class Pipeline(CleanData):
     def __init__(
             self,
             reranking='amberoad/bert-multilingual-passage-reranking-msmarco',
-            fact_check='nguyen-brat/fact_verify'
+            fact_check='nguyen-brat/fact_verify',
+            device=None,
     ):
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.reranking_model = CrossEncoder(reranking, num_labels=2)
-        self.fact_verification_model = JointCrossEncoder.from_pretrained(fact_check)
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu' if device == None else device
+        self.reranking_model = CrossEncoder(reranking, num_labels=2, max_length=256).to(self.device)
+        self.fact_verification_model = JointCrossEncoder.from_pretrained(fact_check).to(self.device)
         self.fact_verification_tokenizer = AutoTokenizer.from_pretrained(fact_check)
     
     def __call__(
@@ -71,7 +73,7 @@ class Pipeline(CleanData):
         for fact in fact_list:
             pair = [claim, fact]
             with torch.no_grad():
-                result = softmax(self.reranking_model)[1]
+                result = softmax(self.reranking_model.predict(pair))[1]
             reranking_score.append(result)
         sort_index = np.argsort(np.array(reranking_score))
         reranking_answer = list(np.array(fact_list)[sort_index])
@@ -80,7 +82,7 @@ class Pipeline(CleanData):
     
     def fact_verification_inference(self, claim, fact_list):
         claim = self.preprocess_text(claim)
-        fact_input_id = self.fact_verification_tokenizer([claim]*len(fact_list), fact_list, return_tensors='pt', max_length=256, padding='max_length', pad_to_max_length=True, truncation=True)
+        fact_input_id = self.fact_verification_tokenizer([claim]*len(fact_list), fact_list, return_tensors='pt', max_length=256, padding='max_length', pad_to_max_length=True, truncation=True).to(self.device)
         logit = self.fact_verification_model.predict(fact_input_id)
         output = torch.argmax(logit)
         return inverse_relation[output.item()]
@@ -93,7 +95,7 @@ class Pipeline(CleanData):
         result = {}
         with open(input_path, 'r') as f:
             data = json.load(f)
-        for key in data.keys():
+        for key in tqdm(data.keys()):
             evident, verdict = self.predict(data[key]['claim'], data[key]['context'])
             result[key] = {
                 "verdict":verdict,

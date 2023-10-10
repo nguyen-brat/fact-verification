@@ -16,10 +16,10 @@ from ...reranking.cross_encoder.dataloader import RerankDataloader, RerankDatalo
 
 
 class CrossEncoderSamples(object):
-    query: List[str] = []
-    positive_passages: List[str] = []
-    contexts: List[str] = []
-    labels: List[int]
+    query: List[str] = [] # claim
+    positive_passages: List[str] = [] # positive passage for each query
+    labels: List[int] # verdict
+    fact_list: List[List[str]] # list of list of candidate fact not contain evident the
 
 
 class FactVerificationBatch(object):
