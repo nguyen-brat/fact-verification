@@ -1,17 +1,13 @@
 from torch.utils.data import Dataset
 import torch.nn.functional as F
 import sys
-import collections
 import glob
-import logging
 import os
 import random
 from typing import Dict, List, Tuple, Union
 import numpy as np
 from enum import Enum
 import torch
-from rank_bm25 import BM25Okapi
-from underthesea import sent_tokenize, word_tokenize
 from ...reranking.cross_encoder.dataloader import RerankDataloader, RerankDataloaderConfig, relation, inverse_relation
 
 
@@ -52,25 +48,13 @@ class FactVerifyDataloader(RerankDataloader):
         batch.claims_facts = []
         batch.is_positive = []
 
-        tokenize_batch_context = self.list_sentence_tokenize(raw_batch.contexts)
-        bm25 = BM25Okapi(tokenize_batch_context)
         facts = []
         for i, query in enumerate(raw_batch.query):
-            positive_id = -1 # positive_id = -1 mean there if no positive id and label is NEI
-            sample = []
+            sample = [raw_batch.positive_passages[i]] + raw_batch.fact_list[i]
             if inverse_relation[raw_batch.labels[i]] != "NEI":
-                sample.append(raw_batch.positive_passages[i])
-                try:
-                    positive_id = raw_batch.contexts.index(raw_batch.positive_passages[i])
-                except:
-                    positive_id = -1
-            ohot_positive_id = F.one_hot(torch.tensor(0), num_classes=batch.fact_per_claim).tolist() if positive_id != -1 else [0]*batch.fact_per_claim
-            all_negative_index = self.retrieval(query,
-                                                bm25,
-                                                positive_id,
-                                                hard=self.config.num_hard_negatives,
-                                                easy=0,)
-            sample += np.array(raw_batch.contexts)[np.array(all_negative_index)].tolist()
+                ohot_positive_id = F.one_hot(torch.tensor(0), num_classes=batch.fact_per_claim).tolist()
+            else:
+                ohot_positive_id = torch.zeros(size=(batch.fact_per_claim)).tolist()
 
             if self.config.shuffle_positives:
                 temp = list(zip(sample, ohot_positive_id))

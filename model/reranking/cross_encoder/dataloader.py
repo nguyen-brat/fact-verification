@@ -68,10 +68,14 @@ class RerankDataloader(Dataset):
     def create_biencoder_input(self, idx)->CrossEncoderBatch:
         raw_batch = self.create_crossencoder_samples(idx)
         result = []
-        for claim, evidence, facts in zip(raw_batch.query, raw_batch.positive_passages, raw_batch.fact_list):
-            result.append(self.create_pos_input(claim, evidence))
-            for fact in facts:
-                result.append(self.create_neg_input(claim, fact))
+        for claim, evidence, facts, label in zip(raw_batch.query, raw_batch.positive_passages, raw_batch.fact_list, raw_batch.labels):
+            if label != 2:
+                result.append(self.create_pos_input(claim, evidence))
+                for fact in facts:
+                    result.append(self.create_neg_input(claim, fact))
+            else:
+                for fact in facts:
+                    result.append(self.create_neg_input(claim, fact))
         if self.config.shuffle:
             random.shuffle(result)
         
@@ -88,7 +92,13 @@ class RerankDataloader(Dataset):
         samples.query = data['claim'].to_list()
         samples.positive_passages = data['evidence'].to_list()
         samples.labels = data['verdict'].to_list()
-        samples.fact_list = data['facts_list']
+        fact_list = []
+        for i, label in enumerate(samples.labels):
+            if label == 2:
+                fact_list.append(data['facts_list'][i])
+            else:
+                fact_list.append([data['evidence'][i]]+data['facts_list'][i])
+        samples.fact_list = fact_list
 
         return samples
 
@@ -98,7 +108,6 @@ class RerankDataloader(Dataset):
     @staticmethod
     def create_pos_input(query, context):
         return InputExample(texts=[query, context], label=1)
-
 
 
     def read_files(self, paths):
@@ -111,5 +120,4 @@ class RerankDataloader(Dataset):
     def read_file(self, file):
         with open(file, 'r') as f:
             data = list(json.load(f).values())
-            data = list(map(self.preprocess, data))
         return data

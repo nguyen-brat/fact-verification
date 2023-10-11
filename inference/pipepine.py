@@ -7,6 +7,7 @@ import numpy as np
 from typing import List, Union, Tuple
 import json
 from tqdm import tqdm
+import os
 
 
 relation = {
@@ -34,7 +35,7 @@ class Pipeline(CleanData):
             device=None,
     ):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu' if device == None else device
-        self.reranking_model = CrossEncoder(reranking, num_labels=2, max_length=256).to(self.device)
+        self.reranking_model = CrossEncoder(reranking, num_labels=2, max_length=256)
         self.fact_verification_model = JointCrossEncoder.from_pretrained(fact_check).to(self.device)
         self.fact_verification_tokenizer = AutoTokenizer.from_pretrained(fact_check)
     
@@ -87,11 +88,13 @@ class Pipeline(CleanData):
         output = torch.argmax(logit)
         return inverse_relation[output.item()]
 
-    def output_file(self, input_path='data/test/ise-dsc01-public-test-offcial.json', output_path='log/output/result.json'):
+    def output_file(self, input_path='data/test/ise-dsc01-public-test-offcial.json', output_path='log/output'):
         '''
         input file path need to predict
         create the result file
         '''
+        if not os.path.exists():
+            os.makedirs(output_path)
         result = {}
         with open(input_path, 'r') as f:
             data = json.load(f)
@@ -99,9 +102,9 @@ class Pipeline(CleanData):
             evident, verdict = self.predict(data[key]['claim'], data[key]['context'])
             result[key] = {
                 "verdict":verdict,
-                "evident":evident
+                "evidence":evident if verdict != "NEI" else ""
             }
-        with open(output_path, 'r') as f:
+        with open(os.path.join(output_path, 'public_result.json'), 'w') as f:
             json.dump(result, f, ensure_ascii=False, indent=4)
             
 

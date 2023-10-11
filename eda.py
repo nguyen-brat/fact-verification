@@ -94,8 +94,8 @@ class Visualization:
             bm25 = BM25Okapi([self.n_gram(txt) for txt in raw_context])
             doc_scores = np.array(bm25.get_scores(self.n_gram(self.raw_data['claim'][i].rstrip('.'))))
             sort_idx = np.flip(np.argsort(doc_scores))
-            fact_list = [raw_context[idx] for idx in sort_idx[:top_k]]
-            result.append({'claim':self.raw_data['claim'][i], 'facts':fact_list})
+            fact_list = [self.preprocess_text(raw_context[idx]) for idx in sort_idx[:top_k]]
+            result.append({'claim':self.preprocess_text(self.raw_data['claim'][i]), 'facts':fact_list})
 
         return result
 
