@@ -32,15 +32,11 @@ class RerankDataloaderConfig:
     def __init__(
             self,
             num_hard_negatives:int=4,
-            shuffle:bool=True,
-            shuffle_positives:bool=True,
             batch_size:int=16,
             remove_duplicate_context=False,
             word_tokenize = False
     ):
         self.num_hard_negatives = num_hard_negatives
-        self.shuffle = shuffle
-        self.shuffle_positives = shuffle_positives
         self.batch_size = batch_size
         self.remove_duplicate_context = remove_duplicate_context
         self.word_tokenize = word_tokenize
@@ -54,8 +50,7 @@ class RerankDataloader(Dataset):
         self.config = config
         self.data_path = data_path
         self.raw_datas = self.read_file(data_path)
-        if config.shuffle:
-            random.shuffle(self.raw_datas)
+        random.shuffle(self.raw_datas)
 
     def __len__(self):
         return len(self.raw_datas)//self.config.batch_size
@@ -76,8 +71,7 @@ class RerankDataloader(Dataset):
             else:
                 for fact in facts:
                     result.append(self.create_neg_input(claim, fact))
-        if self.config.shuffle:
-            random.shuffle(result)
+        random.shuffle(result)
         
         return result
 

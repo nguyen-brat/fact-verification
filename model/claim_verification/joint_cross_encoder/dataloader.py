@@ -44,35 +44,35 @@ class FactVerifyDataloader(RerankDataloader):
         batch = FactVerificationBatch
         batch.claims = raw_batch.query
         batch.label = torch.tensor(raw_batch.labels)
-        batch.fact_per_claim = self.config.num_hard_negatives + self.config.num_other_negatives + 1 # 1 is the positive fact
+        batch.fact_per_claim = self.config.num_hard_negatives + 1 # 1 is the positive fact
         batch.claims_facts = []
-        batch.is_positive = []
+        batch.is_positive_ohot = []
 
         facts = []
-        for i, query in enumerate(raw_batch.query):
-            sample = [raw_batch.positive_passages[i]] + raw_batch.fact_list[i]
+        for i, claim in enumerate(raw_batch.query):
             if inverse_relation[raw_batch.labels[i]] != "NEI":
-                ohot_positive_id = F.one_hot(torch.tensor(0), num_classes=batch.fact_per_claim).tolist()
+                sample = [raw_batch.positive_passages[i]] + raw_batch.fact_list[i]
+                ohot_positive_id = F.one_hot(torch.tensor(0), num_classes=batch.fact_per_claim).to(torch.float32).tolist()
             else:
-                ohot_positive_id = torch.zeros(size=(batch.fact_per_claim)).tolist()
+                ohot_positive_id = torch.zeros(size=(batch.fact_per_claim, )).tolist()
+                sample = raw_batch.fact_list[i]*batch.fact_per_claim
+                sample = sample[:batch.fact_per_claim]
 
-            if self.config.shuffle_positives:
-                temp = list(zip(sample, ohot_positive_id))
-                random.shuffle(temp)
-                sample, ohot_positive_id = zip(*temp)
-                sample, ohot_positive_id = list(sample), list(ohot_positive_id)
-            batch.is_positive.append(ohot_positive_id)
+            temp = list(zip(sample, ohot_positive_id))
+            random.shuffle(temp)
+            sample, ohot_positive_id = zip(*temp)
+            sample, ohot_positive_id = list(sample), list(ohot_positive_id)
+            batch.is_positive_ohot.append(ohot_positive_id)
             facts.append(sample)
 
-        if self.config.shuffle:
-            temp = list(zip(raw_batch.query, raw_batch.labels, facts, batch.is_positive))
-            random.shuffle(temp)
-            claims, label, facts, batch.is_positive = zip(*temp)
-            claims, label, facts, batch.is_positive = list(claims), list(label), list(facts), list(batch.is_positive)
-            batch.is_positive_ohot = torch.tensor(batch.is_positive, dtype=torch.float32)
-            batch.is_positive = torch.argmax(batch.is_positive_ohot, dim=1).type(torch.float32)
-            batch.label = torch.tensor(label)
-            batch.claims = claims
+        temp = list(zip(raw_batch.query, raw_batch.labels, facts, batch.is_positive_ohot))
+        random.shuffle(temp)
+        claims, label, facts, batch.is_positive_ohot = zip(*temp)
+        claims, label, facts, batch.is_positive_ohot = list(claims), list(label), list(facts), list(batch.is_positive_ohot)
+        batch.is_positive_ohot = torch.tensor(batch.is_positive_ohot, dtype=torch.float32)
+        batch.is_positive = torch.argmax(batch.is_positive_ohot, dim=1).type(torch.float32)
+        batch.label = torch.tensor(label)
+        batch.claims = claims
 
         concat_claims = np.array(claims*batch.fact_per_claim)
         concat_claims = concat_claims.reshape(batch.fact_per_claim, self.config.batch_size)

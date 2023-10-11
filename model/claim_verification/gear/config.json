@@ -1,16 +1,3 @@
-{
-    "architectures": [
-      "FactVerification"
-    ],
-    "model_type": "factverification",
-    "nfeat":768,
-    "nins":5,
-    "nclass":3,
-    "nlayer":5,
-    "pool": "att",
-    "model":"amberoad/bert-multilingual-passage-reranking-msmarco",
-    "max_length":256,
-    "device":"cuda",
-    "torch_dtype": "float32",
-    "transformers_version": "4.33.1"
-  }
+version https://git-lfs.github.com/spec/v1
+oid sha256:97fe5e9289a8a240de8478e9e750fdb9efbac3ae4590bd24bd1d34e821eed5cb
+size 358
