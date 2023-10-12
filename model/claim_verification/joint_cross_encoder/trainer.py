@@ -117,7 +117,7 @@ class JointCrossEncoderTrainer:
         metrics = [MulticlassF1Score(num_classes=3), MulticlassConfusionMatrix(num_classes=3)]
 
         for epoch in range(epochs):
-            print(f'epoch {epoch}/{epochs} ')
+            print(f'epoch: {epoch+1}/{epochs} ')
             self.model.zero_grad()
             self.model.train()
 
@@ -126,7 +126,6 @@ class JointCrossEncoderTrainer:
                 multi_evident_loss_value = multi_loss_fct(multi_evident_logits, labels)
                 single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
                 #is_positive_loss_value = binary_loss_fct(positive_logits, is_positive_ohot)
-                #loss_value = (multi_evident_loss_value + single_evident_loss_value + is_positive_loss_value)/3
                 loss_value = (multi_evident_loss_value + single_evident_loss_value)/2
                 self.accelerator.backward(loss_value)
                 optimizer.step()
@@ -199,7 +198,6 @@ class JointCrossEncoderTrainer:
 def main(args):
     dataloader_config = RerankDataloaderConfig(
         num_hard_negatives = args.num_hard_negatives,
-        num_other_negatives = 0,
         batch_size = args.batch_size,
         remove_duplicate_context = args.remove_duplicate_context,
     )
@@ -222,7 +220,7 @@ def main(args):
         multi_loss_fct = torch.hub.load(
             'adeelh/pytorch-multi-class-focal-loss',
             model='focal_loss',
-            alpha=[.4, .2, .4],
+            alpha=[.1, .8, .1],
             gamma=2,
             reduction='mean',
             device=args.device,

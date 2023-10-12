@@ -10,3 +10,4 @@ underthesea
 pandas
 scikit-learn
 torcheval
+mpi4py

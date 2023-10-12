@@ -6,11 +6,18 @@ from underthesea import sent_tokenize
 from rank_bm25 import BM25Okapi
 from nltk import ngrams
 import re
+import torch
+import torch.nn.functional as F
+from typing import List
+from sentence_transformers import CrossEncoder
 
 class Visualization:
     def __init__(self,
-                data_path='data/ise-dsc01-warmup.json'):
+                data_path='data/raw_data/ise-dsc01-train.json',
+                use_rerank=False):
         self.raw_data = pd.read_json(data_path).transpose().sort_index().reset_index()
+        if use_rerank:
+            self.model = CrossEncoder('amberoad/bert-multilingual-passage-reranking-msmarco')
 
 
     # def split_doc(self, graphs):
@@ -87,6 +94,24 @@ class Visualization:
         return num_match_index, error_extractor
     
 
+    def reranking_inference(self, claim:str, fact_list:List[str]):
+        '''
+        take claim and list of fact list
+        return reranking fact list and score of them
+        '''
+        claim = self.preprocess_text(claim)
+        reranking_score = []
+        for fact in fact_list:
+            pair = [claim, fact]
+            with torch.no_grad():
+                result = F.softmax(self.reranking_model.predict(pair))[1]
+            reranking_score.append(result)
+        sort_index = np.argsort(np.array(reranking_score))
+        reranking_answer = list(np.array(fact_list)[sort_index])
+        reranking_answer.reverse()
+        return reranking_answer[0], reranking_answer, reranking_score
+    
+    
     def bm25_result_test(self, top_k):
         result = []
         for i in range(len(self.raw_data['claim'])):
