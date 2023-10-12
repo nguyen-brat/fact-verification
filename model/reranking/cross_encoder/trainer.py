@@ -21,7 +21,6 @@ class FocalLoss(nn.Module):
 def main(args):
     dataloader_config = RerankDataloaderConfig()
     dataloader_config.num_hard_negatives = args.num_hard_negatives
-    #dataloader_config.num_other_negatives = args.num_other_negatives
     dataloader_config.batch_size = args.batch_size
     dataloader_config.remove_duplicate_context = args.remove_duplicate_context
 
@@ -79,9 +78,9 @@ def parse_args():
     parser.add_argument("--num_other_negatives", default=1, type=int)
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--remove_duplicate_context", default=False, action=argparse.BooleanOptionalAction)
-    parser.add_argument("--epochs", default=40, type=int)
+    parser.add_argument("--epochs", default=30, type=int)
     parser.add_argument("--use_focal_loss", default=False, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
-    parser.add_argument("--save_model_path", default="model/reranking/saved_model", type=str)
+    parser.add_argument("--save_model_path", default="model/reranking/cross_encoder/saved_model", type=str)
     parser.add_argument("--device", type=str, default="cuda:0", help="Specify which gpu device to use.")
     args = parser.parse_args()
     return args

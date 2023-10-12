@@ -176,7 +176,8 @@ class CrossEncoder():
         if not save_best_model:
             self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
-        self.tokenizer.save_pretrained(output_path)
+            self.tokenizer.save_pretrained(output_path)
+        self.save_to_hub()
         return train_loss_list, acc_list
 
     def val_evaluation(self,
@@ -273,3 +274,11 @@ class CrossEncoder():
             save_function=self.accelerator.save,
             state_dict=self.accelerator.get_state_dict(self.model),
         )
+
+    def save_to_hub(
+            self,
+            model_name='rerank_crossencoder',
+    ):
+        unwrapped_model = self.accelerator.unwrap_model(self.model)
+        unwrapped_model.push_to_hub(model_name, token='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')
+        self.tokenizer.push_to_hub(model_name, token='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')
