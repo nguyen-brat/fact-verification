@@ -21,9 +21,7 @@ class FocalLoss(nn.Module):
 def main(args):
     dataloader_config = RerankDataloaderConfig()
     dataloader_config.num_hard_negatives = args.num_hard_negatives
-    dataloader_config.num_other_negatives = args.num_other_negatives
-    dataloader_config.shuffle = args.shuffle
-    dataloader_config.shuffle_positives = args.shuffle_positives
+    #dataloader_config.num_other_negatives = args.num_other_negatives
     dataloader_config.batch_size = args.batch_size
     dataloader_config.remove_duplicate_context = args.remove_duplicate_context
 
@@ -79,8 +77,6 @@ def parse_args():
     parser.add_argument("--val_data_path", default=None, type=str)
     parser.add_argument("--num_hard_negatives", default=1, type=int)
     parser.add_argument("--num_other_negatives", default=1, type=int)
-    parser.add_argument("--shuffle", default=True, action=argparse.BooleanOptionalAction)
-    parser.add_argument("--shuffle_positives", default=True, action=argparse.BooleanOptionalAction)
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--remove_duplicate_context", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--epochs", default=40, type=int)

@@ -200,8 +200,6 @@ def main(args):
     dataloader_config = RerankDataloaderConfig(
         num_hard_negatives = args.num_hard_negatives,
         num_other_negatives = 0,
-        shuffle = args.shuffle,
-        shuffle_positives = args.shuffle_positives,
         batch_size = args.batch_size,
         remove_duplicate_context = args.remove_duplicate_context,
     )
@@ -256,11 +254,9 @@ def parse_args():
     parser.add_argument("--model", default='amberoad/bert-multilingual-passage-reranking-msmarco', type=str)
     parser.add_argument("--max_length", default=256, type=int)
     parser.add_argument("--num_label", default=2, type=int)
-    parser.add_argument("--train_data_path", default='data/raw_data/ise-dsc01-warmup.json', type=str)
+    parser.add_argument("--train_data_path", default='data/clean_data/train.json', type=str)
     parser.add_argument("--val_data_path", default=None, type=str)
     parser.add_argument("--num_hard_negatives", default=4, type=int)
-    parser.add_argument("--shuffle", default=True, action=argparse.BooleanOptionalAction)
-    parser.add_argument("--shuffle_positives", default=True, action=argparse.BooleanOptionalAction)
     parser.add_argument("--batch_size", default=8, type=int)
     parser.add_argument("--remove_duplicate_context", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--epochs", default=30, type=int)
