@@ -141,6 +141,7 @@ class JointCrossEncoderTrainer:
                     self.best_score = acc
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
+                    self.save_to_hub()
                 self.accelerator.print(f'model accuracy is {acc.item()}')
                 self.model.zero_grad()
                 self.model.train()
@@ -149,6 +150,7 @@ class JointCrossEncoderTrainer:
                     self.best_losses = loss_value.item()
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
+                    self.save_to_hub()
 
             self.accelerator.print(f'loss value is {loss_value.item()}')
             self.accelerator.print(f'multiple evident loss value is {multi_evident_loss_value.item()}')
@@ -160,7 +162,7 @@ class JointCrossEncoderTrainer:
         if not save_best_model:
             self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
-        self.save_to_hub()
+            self.save_to_hub()
 
         return train_loss_list, acc_list
     
@@ -187,11 +189,10 @@ class JointCrossEncoderTrainer:
 
     def save_to_hub(
             self,
-            model_path='model/claim_verification/joint_cross_encoder/saved_model',
             model_name='claim_verify_join_encoder',
     ):
-        model = JointCrossEncoder.from_pretrained(model_path)
-        model.push_to_hub(model_name, token='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', private=True)
+        unwrapped_model = self.accelerator.unwrap_model(self.model)
+        unwrapped_model.push_to_hub(model_name, token='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', private=True)
         self.tokenizer.push_to_hub(model_name, token='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', private=True)
     
 

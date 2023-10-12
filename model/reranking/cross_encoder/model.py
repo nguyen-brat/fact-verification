@@ -160,6 +160,7 @@ class CrossEncoder():
                     self.best_score = acc
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
+                    self.save_to_hub()
                 self.accelerator.print(f'model accuracy is {acc.item()}')
                 self.model.zero_grad()
                 self.model.train()
@@ -168,6 +169,7 @@ class CrossEncoder():
                     self.best_losses = loss_value.item()
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
+                    self.save_to_hub()
 
             self.accelerator.print(f'loss value is {loss_value.item()}')
             train_loss_list.append(loss_value.item())
@@ -177,7 +179,7 @@ class CrossEncoder():
             self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
             self.tokenizer.save_pretrained(output_path)
-        self.save_to_hub()
+            self.save_to_hub()
         return train_loss_list, acc_list
 
     def val_evaluation(self,
