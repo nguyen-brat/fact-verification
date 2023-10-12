@@ -188,7 +188,7 @@ class JointCrossEncoderTrainer:
     def save_to_hub(
             self,
             model_path='model/claim_verification/joint_cross_encoder/saved_model',
-            model_name='reranking_join_encoder',
+            model_name='claim_verify_join_encoder',
     ):
         model = JointCrossEncoder.from_pretrained(model_path)
         model.push_to_hub(model_name, token='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')
