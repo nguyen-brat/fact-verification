@@ -191,8 +191,8 @@ class JointCrossEncoderTrainer:
             model_name='claim_verify_join_encoder',
     ):
         model = JointCrossEncoder.from_pretrained(model_path)
-        model.push_to_hub(model_name, token='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')
-        self.tokenizer.push_to_hub(model_name, token='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')
+        model.push_to_hub(model_name, token='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', private=True)
+        self.tokenizer.push_to_hub(model_name, token='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', private=True)
     
 
 def main(args):

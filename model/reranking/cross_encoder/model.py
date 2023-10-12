@@ -280,5 +280,5 @@ class CrossEncoder():
             model_name='rerank_crossencoder',
     ):
         unwrapped_model = self.accelerator.unwrap_model(self.model)
-        unwrapped_model.push_to_hub(model_name, token='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')
-        self.tokenizer.push_to_hub(model_name, token='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')
+        unwrapped_model.push_to_hub(model_name, token='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', private=True)
+        self.tokenizer.push_to_hub(model_name, token='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', private=True)
