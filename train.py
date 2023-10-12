@@ -6,7 +6,5 @@ from inference.pipepine import Pipeline
 if __name__ == "__main__":
     #rerank_run()
     #fact_verify_run()
-    #join_fact_verify_run()
-    pipe = Pipeline()
-    pipe.output_file()
+    join_fact_verify_run()
     pass
