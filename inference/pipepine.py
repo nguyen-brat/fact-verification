@@ -30,8 +30,8 @@ def softmax(x):
 class Pipeline(CleanData):
     def __init__(
             self,
-            reranking='amberoad/bert-multilingual-passage-reranking-msmarco',
-            fact_check='nguyen-brat/fact_verify',
+            reranking='nguyen-brat/rerank_crossencoder',
+            fact_check='model/claim_verification/joint_cross_encoder/saved_model',
             device=None,
     ):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu' if device == None else device
@@ -93,7 +93,7 @@ class Pipeline(CleanData):
         input file path need to predict
         create the result file
         '''
-        if not os.path.exists():
+        if not os.path.exists(output_path):
             os.makedirs(output_path)
         result = {}
         with open(input_path, 'r') as f:

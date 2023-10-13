@@ -37,16 +37,16 @@ class CleanData:
         '''
         result = {}
         fact_list, _ = self.bm25(sample['claim'], sample['context'], k=k)
-        if sample['evidence']:
+        if sample['evidence']: # if not null
             evident = self.preprocess_text(sample['evidence'])
-            if (evident in fact_list) and (self.preprocess_text(sample['claim'] not in fact_list)):
+            if (evident in fact_list):
                 fact_list.remove(evident)
-                result["context"] = sample['context']
-                result["claim"] = self.preprocess_text(sample['claim'])
-                result["verdict"] = sample["verdict"]
-                result["evidence"] = evident
-                result["domain"] = sample["domain"]
-                result["facts_list"] = fact_list
+            result["context"] = sample['context']
+            result["claim"] = self.preprocess_text(sample['claim'])
+            result["verdict"] = sample["verdict"]
+            result["evidence"] = evident
+            result["domain"] = sample["domain"]
+            result["facts_list"] = fact_list
         else:
             result["verdict"] = sample["verdict"] # equal null
             result["claim"] = self.preprocess_text(sample['claim'])
@@ -132,6 +132,11 @@ class CleanData:
             ngram = ngrams(sentence.split(), gram)
             result += map(lambda x: '_'.join(x), ngram)
         return result
+    
+
+    def tokenize_n_gram(self, sentence):
+        sentence = word_tokenize(sentence, format='text')
+        return self.n_gram(sentence)
     
     
     @staticmethod
