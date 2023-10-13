@@ -73,7 +73,7 @@ class JointCrossEncoderTrainer:
             output_path: str = None,
             save_best_model: bool = True,
             show_progress_bar: bool = True,
-            patient: int = 5,
+            patient: int = 4,
     ):
         train_dataloader.collate_fn = self.smart_batching_collate
         if val_dataloader != None:
@@ -84,6 +84,7 @@ class JointCrossEncoderTrainer:
 
         self.best_score = -9999999
         self.best_losses = 9999999
+        patient_count = 0
         num_train_steps = int(len(train_dataloader) * epochs)
 
         # Prepare optimizers
@@ -138,19 +139,30 @@ class JointCrossEncoderTrainer:
                 acc = self.val_evaluation(val_dataloader, metrics=metrics)
                 acc_list.append(acc)
                 if (acc > self.best_score) and save_best_model:
+                    patient_count = 0
                     self.best_score = acc
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
                     self.save_to_hub()
+                elif patient_count == patient:
+                    break
+                else:
+                    patient_count += 1
                 self.accelerator.print(f'model accuracy is {acc.item()}')
                 self.model.zero_grad()
                 self.model.train()
             else:
                 if (loss_value.item() < self.best_losses) and save_best_model:
+                    patient_count = 0
                     self.best_losses = loss_value.item()
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
                     self.save_to_hub()
+                elif patient_count == patient:
+                    break
+                else:
+                    patient_count += 1
+
 
             self.accelerator.print(f'loss value is {loss_value.item()}')
             self.accelerator.print(f'multiple evident loss value is {multi_evident_loss_value.item()}')
@@ -189,7 +201,7 @@ class JointCrossEncoderTrainer:
 
     def save_to_hub(
             self,
-            model_name='claim_verify_join_encoder',
+            model_name='claim_verify_join_encoder_v2',
     ):
         unwrapped_model = self.accelerator.unwrap_model(self.model)
         unwrapped_model.push_to_hub(model_name, token='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', private=True)
@@ -243,6 +255,7 @@ def main(args):
         loss_fct = loss_fct,
         warmup_steps = warnmup_step,
         output_path = args.save_model_path,
+        patient=args.patient,
     )
 
 def parse_args():
@@ -261,6 +274,7 @@ def parse_args():
     parser.add_argument("--epochs", default=30, type=int)
     parser.add_argument("--use_focal_loss", default=False, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
     parser.add_argument("--save_model_path", default="model/claim_verification/joint_cross_encoder/saved_model", type=str)
+    parser.add_argument("--patient", default=4, type=int)
     parser.add_argument("--device", type=str, default="cuda:0", help="Specify which gpu device to use.")
     args = parser.parse_args()
     return args

@@ -10,7 +10,7 @@ import numpy as np
 class CleanData:
     def __init__(
             self,
-            data_path='ise-dsc01-train.json',
+            data_path='hidden/ise-dsc01-train.json',
             tokenize=False,
     ):
         self.data_path = data_path
@@ -19,10 +19,14 @@ class CleanData:
             self.raw_data = json.load(f)
 
     
-    def __call__(self, k=5, output_path=r'data/clean_data/train.json'):
+    def __call__(
+            self,
+            k=5,
+            output_path=r'hidden/clean_train.json',
+    ):
         result = {}
         for key in self.raw_data.keys():
-            clean_sample = self.clean(self.raw_data[key])
+            clean_sample = self.clean(self.raw_data[key], k=k)
             if clean_sample != {}:
                 result[key] = clean_sample
         with open(output_path, 'w') as f:
@@ -41,6 +45,8 @@ class CleanData:
             evident = self.preprocess_text(sample['evidence'])
             if (evident in fact_list):
                 fact_list.remove(evident)
+            else:
+                fact_list = fact_list[:-1]
             result["context"] = sample['context']
             result["claim"] = self.preprocess_text(sample['claim'])
             result["verdict"] = sample["verdict"]
@@ -141,7 +147,7 @@ class CleanData:
     
     @staticmethod
     def preprocess_text(text: str) -> str:    
-        text = re.sub(r"['\",\?:\-!]", "", text)
+        text = re.sub(r"['\",\.\?:\-!]", "", text)
         text = text.strip()
         text = " ".join(text.split())
         text = text.lower()
