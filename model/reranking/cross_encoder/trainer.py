@@ -62,6 +62,8 @@ def main(args):
         loss_fct = loss_fct,
         warmup_steps = warnmup_step,
         output_path = args.save_model_path,
+        patient=args.patient,
+        model_name=args.model_name,
     )
 
 def parse_args():
@@ -79,6 +81,8 @@ def parse_args():
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--remove_duplicate_context", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--epochs", default=30, type=int)
+    parser.add_argument("--patient", default=4, type=int)
+    parser.add_argument("--model_name", default="rerank_crossencoder", type=str)
     parser.add_argument("--use_focal_loss", default=False, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
     parser.add_argument("--save_model_path", default="model/reranking/cross_encoder/saved_model", type=str)
     parser.add_argument("--device", type=str, default="cuda:0", help="Specify which gpu device to use.")

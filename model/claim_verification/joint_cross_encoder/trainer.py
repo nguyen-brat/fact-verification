@@ -74,6 +74,8 @@ class JointCrossEncoderTrainer:
             save_best_model: bool = True,
             show_progress_bar: bool = True,
             patient: int = 4,
+            model_name="claim_verify_join_encoder_v2",
+            push_to_hub=False,
     ):
         train_dataloader.collate_fn = self.smart_batching_collate
         if val_dataloader != None:
@@ -143,7 +145,8 @@ class JointCrossEncoderTrainer:
                     self.best_score = acc
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
-                    self.save_to_hub()
+                    if push_to_hub:
+                        self.save_to_hub(model_name)
                 elif patient_count == patient:
                     break
                 else:
@@ -157,7 +160,8 @@ class JointCrossEncoderTrainer:
                     self.best_losses = loss_value.item()
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
-                    self.save_to_hub()
+                    if push_to_hub:
+                        self.save_to_hub(model_name)
                 elif patient_count == patient:
                     break
                 else:
@@ -173,7 +177,8 @@ class JointCrossEncoderTrainer:
         if not save_best_model:
             self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
-            self.save_to_hub()
+            if push_to_hub:
+                        self.save_to_hub(model_name)
 
         return train_loss_list, acc_list
     
@@ -255,6 +260,8 @@ def main(args):
         warmup_steps = warnmup_step,
         output_path = args.save_model_path,
         patient=args.patient,
+        model_name=args.model_name,
+        push_to_hub=args.push_to_hub,
     )
 
 def parse_args():
@@ -266,6 +273,7 @@ def parse_args():
     parser.add_argument("--max_length", default=256, type=int)
     parser.add_argument("--num_label", default=2, type=int)
     parser.add_argument("--train_data_path", default='data/clean_data/train.json', type=str)
+    parser.add_argument("--model_name", default='claim_verify_join_encoder_v2', type=str)
     parser.add_argument("--val_data_path", default=None, type=str)
     parser.add_argument("--num_hard_negatives", default=4, type=int)
     parser.add_argument("--batch_size", default=8, type=int)
@@ -275,6 +283,7 @@ def parse_args():
     parser.add_argument("--save_model_path", default="model/claim_verification/joint_cross_encoder/saved_model", type=str)
     parser.add_argument("--patient", default=4, type=int)
     parser.add_argument("--device", type=str, default="cuda:0", help="Specify which gpu device to use.")
+    parser.add_argument("--push_to_hub", default=True, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
     args = parser.parse_args()
     return args
 

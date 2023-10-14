@@ -89,8 +89,11 @@ class CrossEncoder():
             weight_decay: float = 0.01,
             output_path: str = None,
             save_best_model: bool = True,
-            #max_grad_norm: float = 1,
-            show_progress_bar: bool = True
+            max_grad_norm: float = 1,
+            show_progress_bar: bool = True,
+            model_name="rerank_crossencoder",
+            push_to_hub=False,
+            patient = 4,
             ):
         train_dataloader.collate_fn = self.smart_batching_collate
         if val_dataloader != None:
@@ -99,6 +102,7 @@ class CrossEncoder():
         if output_path is not None:
             os.makedirs(output_path, exist_ok=True)
 
+        patient_count = 0
         self.best_score = -9999999
         self.best_losses = 9999999
         num_train_steps = int(len(train_dataloader) * epochs)
@@ -146,7 +150,7 @@ class CrossEncoder():
                     logits = logits.view(-1)
                 loss_value = loss_fct(logits, labels)
                 self.accelerator.backward(loss_value)
-                #torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
                 optimizer.step()
                 optimizer.zero_grad()
                 if not skip_scheduler:
@@ -157,10 +161,16 @@ class CrossEncoder():
                 acc = self.val_evaluation(val_dataloader, metrics=metrics)
                 acc_list.append(acc)
                 if (acc > self.best_score) and save_best_model:
+                    patient_count = 0
                     self.best_score = acc
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
-                    self.save_to_hub()
+                    if push_to_hub:
+                        self.save_to_hub(model_name)
+                elif patient_count == patient:
+                    break
+                else:
+                    patient_count += 1
                 self.accelerator.print(f'model accuracy is {acc.item()}')
                 self.model.zero_grad()
                 self.model.train()
@@ -169,7 +179,12 @@ class CrossEncoder():
                     self.best_losses = loss_value.item()
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
-                    self.save_to_hub()
+                    if push_to_hub:
+                        self.save_to_hub(model_name)
+                elif patient_count == patient:
+                    break
+                else:
+                    patient_count += 1
 
             self.accelerator.print(f'loss value is {loss_value.item()}')
             train_loss_list.append(loss_value.item())
@@ -179,7 +194,8 @@ class CrossEncoder():
             self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
             self.tokenizer.save_pretrained(output_path)
-            self.save_to_hub()
+            if push_to_hub:
+                self.save_to_hub(model_name)
         return train_loss_list, acc_list
 
     def val_evaluation(self,
