@@ -9,4 +9,7 @@ class Jointer:
                 self.data.append(json.load(f))
     
     def __call__(self, output_path):
+        '''
+        join sample of all data_path and save in output_path
+        '''
         pass
