@@ -167,7 +167,6 @@ class JointCrossEncoderTrainer:
             self.accelerator.print(f'loss value is {loss_value.item()}')
             self.accelerator.print(f'multiple evident loss value is {multi_evident_loss_value.item()}')
             self.accelerator.print(f'single evident loss value is {single_evident_loss_value.item()}')
-            #self.accelerator.print(f'positive loss value is {is_positive_loss_value.item()}')
             train_loss_list.append(loss_value.item())
             self.accelerator.wait_for_everyone()
 
