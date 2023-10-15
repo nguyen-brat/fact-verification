@@ -171,6 +171,9 @@ class JointCrossEncoderTrainer:
             self.accelerator.print(f'loss value is {loss_value.item()}')
             self.accelerator.print(f'multiple evident loss value is {multi_evident_loss_value.item()}')
             self.accelerator.print(f'single evident loss value is {single_evident_loss_value.item()}')
+            if val_dataloader != None:
+                self.accelerator.print(f'f1 score is: {acc[0]}')
+                self.accelerator.print(f'confusion matrix is {acc[1]}')
             train_loss_list.append(loss_value.item())
             self.accelerator.wait_for_everyone()
 
@@ -187,10 +190,10 @@ class JointCrossEncoderTrainer:
                        metrics,
                        ):
         with torch.no_grad():
-            for feature, label in val_dataloader:
-                logits = self.model(**feature, return_dict=True).logits
+            for fact_claims_ids, labels, is_positive, _ in val_dataloader:
+                multi_evident_logits, _, _ = self.model(fact_claims_ids, is_positive, return_dict=True).logits
                 for metric in metrics:
-                    metric.update(logits, label)
+                    metric.update(multi_evident_logits, labels)
         return [metric.compute() for metric in metrics]
     
     def save_during_training(self, output_path):
