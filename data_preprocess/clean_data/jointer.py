@@ -21,3 +21,7 @@ class Jointer:
                 count += 1
         with open(output_path, 'w') as f:
             json.dump(result, f, ensure_ascii=False, indent=4)
+
+if __name__ == '__main__':
+    jointer = Jointer(['data/raw_data/ise-dsc01-warmup.json', 'data/raw_data/Back_translate_augmentation_data.json', 'data/raw_data/Paraphrase_augmentation_data.json'])
+    jointer('hidden/raw_data.json')
