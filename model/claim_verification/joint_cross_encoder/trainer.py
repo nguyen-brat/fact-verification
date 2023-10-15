@@ -47,7 +47,7 @@ class JointCrossEncoderTrainer:
             zero_stage=3,
         )
         self.accelerator = Accelerator(mixed_precision='fp16',
-                                       deepspeed_plugin=deepspeed_plugin
+                                       deepspeed_plugin=deepspeed_plugin,
                                        )
         self.device = self.accelerator.device
 
@@ -140,9 +140,9 @@ class JointCrossEncoderTrainer:
                 self.model.eval()
                 acc = self.val_evaluation(val_dataloader, metrics=metrics)
                 acc_list.append(acc)
-                if (acc > self.best_score) and save_best_model:
+                if (acc[0] > self.best_score) and save_best_model:
                     patient_count = 0
-                    self.best_score = acc
+                    self.best_score = acc[0]
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
                     if push_to_hub:
@@ -151,7 +151,6 @@ class JointCrossEncoderTrainer:
                     break
                 else:
                     patient_count += 1
-                self.accelerator.print(f'model accuracy is {acc.item()}')
                 self.model.zero_grad()
                 self.model.train()
             else:
@@ -168,7 +167,7 @@ class JointCrossEncoderTrainer:
                     patient_count += 1
 
 
-            self.accelerator.print(f'loss value is {loss_value.item()}')
+            #self.accelerator.print(f'loss value is {loss_value.item()}')
             self.accelerator.print(f'multiple evident loss value is {multi_evident_loss_value.item()}')
             self.accelerator.print(f'single evident loss value is {single_evident_loss_value.item()}')
             if val_dataloader != None:
@@ -190,11 +189,15 @@ class JointCrossEncoderTrainer:
                        metrics,
                        ):
         with torch.no_grad():
-            for fact_claims_ids, labels, is_positive, _ in val_dataloader:
-                multi_evident_logits, _, _ = self.model(fact_claims_ids, is_positive, return_dict=True).logits
-                for metric in metrics:
+            print('Val evaluation prcessing !')
+            output = []
+            for metric in metrics:
+                for fact_claims_ids, labels, is_positive, _ in tqdm(val_dataloader):
+                    multi_evident_logits, _, _ = self.model(fact_claims_ids, is_positive)
                     metric.update(multi_evident_logits, labels)
-        return [metric.compute() for metric in metrics]
+                output.append(metric.compute())
+                metric.reset()
+        return output
     
     def save_during_training(self, output_path):
         unwrapped_model = self.accelerator.unwrap_model(self.model)
