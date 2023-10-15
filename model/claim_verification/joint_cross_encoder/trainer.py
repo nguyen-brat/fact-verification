@@ -264,11 +264,11 @@ def main(args):
         push_to_hub=args.push_to_hub,
     )
 
-def parse_args(parser):
+def parse_args():
     """
     Parse arguments from command line.
     """
-    #parser = argparse.ArgumentParser(description="Arguments for rerank Trainning")
+    parser = argparse.ArgumentParser(description="Arguments for rerank Trainning")
     parser.add_argument("--model", default='amberoad/bert-multilingual-passage-reranking-msmarco', type=str)
     parser.add_argument("--max_length", default=256, type=int)
     parser.add_argument("--num_label", default=2, type=int)
@@ -287,8 +287,8 @@ def parse_args(parser):
     args = parser.parse_args()
     return args
 
-def join_fact_verify_run(parser):
-    args = parse_args(parser)
+def join_fact_verify_run():
+    args = parse_args()
     main(args=args)
     return args
 
