@@ -14,7 +14,11 @@ from typing import Type, Dict, List
 import os
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics import confusion_matrix
+import wandb
+import os
+
+os.environ["WANDB_API_KEY"] = "8028c3736f8fc4d7bf37f0f2ed19de39610efaa7"
+wandb.login()
 
 class BinaryFocalLoss(nn.Module):
     def __init__(self, alpha=0.25, gamma=2):
@@ -170,9 +174,15 @@ class JointCrossEncoderTrainer:
             #self.accelerator.print(f'loss value is {loss_value.item()}')
             self.accelerator.print(f'multiple evident loss value is {multi_evident_loss_value.item()}')
             self.accelerator.print(f'single evident loss value is {single_evident_loss_value.item()}')
+            train_result = {
+                "multiple evident loss":multi_evident_loss_value.item(),
+                "single evident loss":single_evident_loss_value.item(),
+            }
             if val_dataloader != None:
                 self.accelerator.print(f'f1 score is: {acc[0]}')
                 self.accelerator.print(f'confusion matrix is {acc[1]}')
+                train_result["f1 score"] = acc[0]
+            wandb.log(train_result)
             train_loss_list.append(loss_value.item())
             self.accelerator.wait_for_everyone()
 
@@ -188,6 +198,7 @@ class JointCrossEncoderTrainer:
                        val_dataloader,
                        metrics,
                        ):
+        table = wandb.Table(columns=["evident", "claim", "facts", "predicted", "confusion matrix"])
         with torch.no_grad():
             print('Val evaluation prcessing !')
             output = []
@@ -197,6 +208,7 @@ class JointCrossEncoderTrainer:
                     metric.update(multi_evident_logits, labels)
                 output.append(metric.compute())
                 metric.reset()
+        wandb.log({"predictions table":table}, commit=False)
         return output
     
     def save_during_training(self, output_path):
@@ -219,6 +231,19 @@ class JointCrossEncoderTrainer:
     
 
 def main(args):
+    wandb.init(
+        project="fact verify UIT",
+        config={
+            "model":args.model,
+            "max_length":args.max_length,
+            "model_name":args.model_name,
+            "num_hard_negatives":args.num_hard_negatives,
+            "batch_size":args.batch_size,
+            "remove_duplicate_context":args.remove_duplicate_context,
+            "epochs":args.epochs,
+            "use_focal_loss":args.use_focal_loss,
+            "patient":args.patient,
+        })
     dataloader_config = RerankDataloaderConfig(
         num_hard_negatives = args.num_hard_negatives,
         batch_size = args.batch_size,

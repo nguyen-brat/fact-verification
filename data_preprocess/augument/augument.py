@@ -1,4 +1,5 @@
 import pandas as pd
+import re
 import numpy as np
 from torch.utils.data import Dataset
 import json
@@ -42,11 +43,12 @@ class DataAugmentation(Dataset):
             json_data = self.back_translate.to_json(output_path + 'Back_translate_augmentation_data.json')
 
     @staticmethod
-    def split_doc(graphs):
-        output = sent_tokenize(graphs)
-        in_element = list(map(lambda x:x[:-1].strip(), output[:-1]))
-        last_element = output[-1] if (output[-1][-1] != '.') else output[-1][-1].strip()
-        return in_element + [last_element]
+    def split_doc(self, graphs):
+        graphs = re.sub(r'\.{3}\,', r' ', graphs)
+        for match in re.finditer(r"(\d\.\d|)(\w\.\w)", graphs):
+            graphs = graphs[:match.span()[0]+1] + '|' + graphs[match.span()[1]-1:]
+        outputs = graphs.split('.')
+        return [self.preprocess_text(output.replace('|', '.')) for output in outputs if output != '']
 
     def index_of_evidient(self):
         list_of_idx = []
