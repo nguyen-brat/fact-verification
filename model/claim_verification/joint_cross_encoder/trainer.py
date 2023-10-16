@@ -202,10 +202,11 @@ class JointCrossEncoderTrainer:
         with torch.no_grad():
             print('Val evaluation prcessing !')
             output = []
-            for metric in metrics:
-                for fact_claims_ids, labels, is_positive, _ in tqdm(val_dataloader):
-                    multi_evident_logits, _, _ = self.model(fact_claims_ids, is_positive)
+            for fact_claims_ids, labels, is_positive, _ in tqdm(val_dataloader):
+                multi_evident_logits, _, _ = self.model(fact_claims_ids, is_positive)
+                for metric in metrics:
                     metric.update(multi_evident_logits, labels)
+            for metric in metrics:
                 output.append(metric.compute())
                 metric.reset()
         wandb.log({"predictions table":table}, commit=False)

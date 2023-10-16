@@ -2,6 +2,7 @@ import json
 import random
 import os
 import copy
+from typing import List
 
 class Spliter:
     def __init__(self, data_path):
@@ -62,7 +63,43 @@ class Spliter:
             json.dump(valid_result, f, ensure_ascii=False, indent=4)
         return None
     
+class Jointer:
+    def __init__(self, data_paths:List):
+        self.data = []
+        self.data_paths = data_paths
+        for data_path in data_paths:
+            with open(data_path, 'r') as f:
+                self.data.append(json.load(f))
+    
+    def __call__(self, output_path):
+        '''
+        join sample of all data_path and save in output_path
+        '''
+        result = {}
+        count = 0
+        for data in self.data:
+            for sample in data.values():
+                result[str(count)] = sample
+                count += 1
+        with open(output_path, 'w') as f:
+            json.dump(result, f, ensure_ascii=False, indent=4)
+
+
+def duplicate(input_paths, output_path, data_tag):
+    '''
+    take list of input path and create a file contain
+    only the data_tag given in output_path
+    '''
+    for path in input_paths:
+        with open(path, 'r') as f:
+            data = json.load(f)
+    
 if __name__ == '__main__':
     spliter = Spliter('hidden/ise-dsc01-train.json')
-    #spliter.split_random('hidden')
+    spliter.split_random('hidden')
     spliter.split_balance('hidden')
+
+    jointer = Jointer(['hidden/ise-dsc01-train.json', 'hidden/ise-dsc01-train.json'])
+    jointer(output_path='hidden/jointer_result.json')
+
+    duplicate(input_paths=['hidden/ise-dsc01-train.json'], output_path='hidden/refuted.json', data_tag="REFUTED")

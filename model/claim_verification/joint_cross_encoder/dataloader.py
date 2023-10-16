@@ -5,6 +5,7 @@ import glob
 import os
 import random
 from typing import Dict, List, Tuple, Union
+from underthesea import word_tokenize
 import numpy as np
 from enum import Enum
 import torch
