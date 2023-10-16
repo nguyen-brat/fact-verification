@@ -1,4 +1,5 @@
 test.ipynb
+test.py
 model/claim_verification/joint_cross_encoder/saved_model
 data/clean_data/train.json
 data/raw_data/ise-dsc01-train.json

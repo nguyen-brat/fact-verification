@@ -73,7 +73,8 @@ class JointCrossEncoderTrainer:
             optimizer_class: Type[Optimizer] = torch.optim.AdamW,
             optimizer_params: Dict[str, object] = {'lr': 2e-5},
             weight_decay: float = 0.01,
-            loss_fct = None,
+            use_focal_loss = False,
+            weight = [.3, .3, .3],
             output_path: str = None,
             save_best_model: bool = True,
             show_progress_bar: bool = True,
@@ -107,10 +108,21 @@ class JointCrossEncoderTrainer:
         if isinstance(scheduler, str):
             scheduler = SentenceTransformer._get_scheduler(optimizer, scheduler=scheduler, warmup_steps=warmup_steps, t_total=num_train_steps)
 
-        if loss_fct:
-            multi_loss_fct, binary_loss_fct = loss_fct[1], loss_fct[0]
+        if use_focal_loss:
+            multi_loss_fct = torch.hub.load(
+                'adeelh/pytorch-multi-class-focal-loss',
+                model='focal_loss',
+                alpha=weight,
+                gamma=2,
+                reduction='mean',
+                device=self.device,
+                dtype=torch.float32,
+                force_reload=False
+            )
+            binary_loss_fct = BinaryFocalLoss()
         else:
-            multi_loss_fct, binary_loss_fct = nn.CrossEntropyLoss(weight=torch.tensor([0.1, 0.8, 0.1]).to(self.device)), nn.BCEWithLogitsLoss()
+            multi_loss_fct = nn.CrossEntropyLoss(weight=torch.tensor(weight).to(self.device))
+            binary_loss_fct = nn.BCEWithLogitsLoss()
 
         if val_dataloader == None:
             self.model, optimizer, scheduler, train_dataloader = self.accelerator.prepare(self.model, optimizer, scheduler, train_dataloader)
@@ -243,6 +255,7 @@ def main(args):
             "remove_duplicate_context":args.remove_duplicate_context,
             "epochs":args.epochs,
             "use_focal_loss":args.use_focal_loss,
+            "weight":args.weight,
             "patient":args.patient,
         })
     dataloader_config = RerankDataloaderConfig(
@@ -263,20 +276,6 @@ def main(args):
         )
         val_dataloader = DataLoader(val_data) # batch size is always  because it has bactched when creat data
     train_dataloader = DataLoader(train_data)
-    loss_fct = None
-    if args.use_focal_loss:
-        binary_loss_fct = BinaryFocalLoss()
-        multi_loss_fct = torch.hub.load(
-            'adeelh/pytorch-multi-class-focal-loss',
-            model='focal_loss',
-            alpha=[.1, .8, .1],
-            gamma=2,
-            reduction='mean',
-            device=args.device,
-            dtype=torch.float32,
-            force_reload=False
-        )
-        loss_fct = [binary_loss_fct, multi_loss_fct]
     model_config = JointCrossEncoderConfig(
         model=args.model,
         nins=args.num_hard_negatives+1,
@@ -284,11 +283,13 @@ def main(args):
     model_config.max_length = args.max_length
     trainer = JointCrossEncoderTrainer(config=model_config)
     warnmup_step = math.ceil(len(train_dataloader) * 10 * 0.1)
+    weight = args.weight if args.weight else [.3, .3, .3]
     trainer(
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
-        epochs=args.epochs ,
-        loss_fct = loss_fct,
+        epochs=args.epochs,
+        use_focal_loss=args.use_focal_loss,
+        weight=weight,
         warmup_steps = warnmup_step,
         output_path = args.save_model_path,
         patient=args.patient,
@@ -312,6 +313,7 @@ def parse_args():
     parser.add_argument("--remove_duplicate_context", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--epochs", default=30, type=int)
     parser.add_argument("--use_focal_loss", default=False, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
+    parser.add_argument("--weight", nargs='+', type=float, help="weight of label in loss")
     parser.add_argument("--save_model_path", default="model/claim_verification/joint_cross_encoder/saved_model", type=str)
     parser.add_argument("--patient", default=4, type=int)
     parser.add_argument("--device", type=str, default="cuda:0", help="Specify which gpu device to use.")
