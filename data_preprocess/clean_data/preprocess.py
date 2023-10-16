@@ -152,3 +152,8 @@ class CleanData:
         text = " ".join(text.split())
         text = text.lower()
         return text
+    
+if __name__ == "__main__":
+    cleaner = CleanData(data_path='data_path')
+    cleaner(output_path='output_path.json')
+    pass
