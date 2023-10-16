@@ -85,14 +85,22 @@ class Jointer:
             json.dump(result, f, ensure_ascii=False, indent=4)
 
 
-def duplicate(input_paths, output_path, data_tag):
+def duplicate(input_paths, output_path, data_tag="REFUTED"):
     '''
     take list of input path and create a file contain
     only the data_tag given in output_path
     '''
+    result = {}
+    count = 0
     for path in input_paths:
         with open(path, 'r') as f:
             data = json.load(f)
+            for sample in data.values():
+                if sample['verdict'] == data_tag:
+                    result[str(count)] = sample
+                    count += 1
+    with open(output_path, 'w') as f:
+        json.dump(result, f, ensure_ascii=False, indent=4)
     
 if __name__ == '__main__':
     spliter = Spliter('hidden/ise-dsc01-train.json')
