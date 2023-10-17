@@ -34,10 +34,11 @@ class BinaryFocalLoss(nn.Module):
 class JointCrossEncoderTrainer:
     def __init__(
             self,
+            args,
             config:JointCrossEncoderConfig,
     ):
         self.config = config
-
+        self.args = args
         self.model = JointCrossEncoder(config=config)
         self.tokenizer = AutoTokenizer.from_pretrained(config.model)
 
@@ -50,9 +51,25 @@ class JointCrossEncoderTrainer:
             zero3_save_16bit_model=True,
             zero_stage=3,
         )
-        self.accelerator = Accelerator(mixed_precision='fp16',
-                                       deepspeed_plugin=deepspeed_plugin,
-                                       )
+        self.accelerator = Accelerator(
+            log_with="wandb",
+            mixed_precision='fp16',
+            deepspeed_plugin=deepspeed_plugin,
+        )
+        self.accelerator.init_trackers(
+            args.project_name,
+            config={
+                "num_epochs": args.epochs,
+                "batch_size": args.batch,
+                "pretrained_model": args.model,
+                "num hard negative": args.num_hard_negatives,
+                "batch_size": args.batch_size,
+                "use_focal_loss": args.use_focal_loss,
+                "weight of class": args.weight,
+                "patient": args.patient,
+            },
+            init_kwargs={"wandb": {"name": "nguyen-brat"}}
+        )
         self.device = self.accelerator.device
 
     
@@ -82,6 +99,7 @@ class JointCrossEncoderTrainer:
             model_name="claim_verify_join_encoder_v2",
             push_to_hub=False,
     ):
+        wandb_tracker = self.accelerator.get_tracker("wandb")
         train_dataloader.collate_fn = self.smart_batching_collate
         if val_dataloader != None:
             val_dataloader.collate_fn = self.smart_batching_collate
@@ -194,7 +212,8 @@ class JointCrossEncoderTrainer:
                 self.accelerator.print(f'f1 score is: {acc[0]}')
                 self.accelerator.print(f'confusion matrix is {acc[1]}')
                 train_result["f1 score"] = acc[0]
-            wandb.log(train_result)
+            wandb_tracker.log(train_result)
+            wandb_tracker.log({"predictions confusion matrix":acc[1]}, commit=False)
             train_loss_list.append(loss_value.item())
             self.accelerator.wait_for_everyone()
 
@@ -202,15 +221,15 @@ class JointCrossEncoderTrainer:
             self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
             if push_to_hub:
-                        self.save_to_hub(model_name)
+                self.save_to_hub(model_name)
 
+        self.accelerator.end_training()
         return train_loss_list, acc_list
     
     def val_evaluation(self,
                        val_dataloader,
                        metrics,
                        ):
-        table = wandb.Table(columns=["evident", "claim", "facts", "predicted", "confusion matrix"])
         with torch.no_grad():
             print('Val evaluation prcessing !')
             output = []
@@ -221,7 +240,6 @@ class JointCrossEncoderTrainer:
             for metric in metrics:
                 output.append(metric.compute())
                 metric.reset()
-        wandb.log({"predictions table":table}, commit=False)
         return output
     
     def save_during_training(self, output_path):
@@ -244,20 +262,6 @@ class JointCrossEncoderTrainer:
     
 
 def main(args):
-    wandb.init(
-        project="fact verify UIT",
-        config={
-            "model":args.model,
-            "max_length":args.max_length,
-            "model_name":args.model_name,
-            "num_hard_negatives":args.num_hard_negatives,
-            "batch_size":args.batch_size,
-            "remove_duplicate_context":args.remove_duplicate_context,
-            "epochs":args.epochs,
-            "use_focal_loss":args.use_focal_loss,
-            "weight":args.weight,
-            "patient":args.patient,
-        })
     dataloader_config = RerankDataloaderConfig(
         num_hard_negatives = args.num_hard_negatives,
         batch_size = args.batch_size,
@@ -281,7 +285,7 @@ def main(args):
         nins=args.num_hard_negatives+1,
     )
     model_config.max_length = args.max_length
-    trainer = JointCrossEncoderTrainer(config=model_config)
+    trainer = JointCrossEncoderTrainer(args=args, config=model_config)
     warnmup_step = math.ceil(len(train_dataloader) * 10 * 0.1)
     weight = args.weight if args.weight else [.3, .3, .3]
     trainer(
@@ -318,6 +322,7 @@ def parse_args():
     parser.add_argument("--patient", default=4, type=int)
     parser.add_argument("--device", type=str, default="cuda:0", help="Specify which gpu device to use.")
     parser.add_argument("--push_to_hub", default=True, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
+    parser.add_argument("--project_name", default='fact verify UIT', type=str)
     args = parser.parse_args()
     return args
 
