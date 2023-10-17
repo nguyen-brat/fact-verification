@@ -228,17 +228,6 @@ class JointCrossEncoderTrainer:
             if val_dataloader != None:
                 self.accelerator.print(f'f1 score is: {acc[0]}')
                 self.accelerator.print(f'confusion matrix is {acc[1]}')
-            # train_result = {
-            #     "multiple evident loss":multi_evident_loss_value.item(),
-            #     "single evident loss":single_evident_loss_value.item(),
-            # }
-            # if val_dataloader != None:
-            #     self.accelerator.print(f'f1 score is: {acc[0]}')
-            #     self.accelerator.print(f'confusion matrix is {acc[1]}')
-            #     train_result["f1 score"] = acc[0]
-            # wandb_tracker.log(train_result)
-            # table = wandb.Table(data=acc[1].tolist(), columns=["supported", "refuted", "nei"])
-            # wandb_tracker.log({"predictions confusion matrix":table}, commit=False)
             train_loss_list.append(loss_value.item())
             self.accelerator.wait_for_everyone()
 

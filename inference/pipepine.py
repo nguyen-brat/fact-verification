@@ -30,12 +30,12 @@ def softmax(x):
 class Pipeline(CleanData):
     def __init__(
             self,
-            reranking='nguyen-brat/rerank_crossencoder',
-            fact_check='model/claim_verification/joint_cross_encoder/saved_model',
+            #reranking='nguyen-brat/rerank_crossencoder',
+            fact_check='nguyen-brat/fact_verify',
             device=None,
     ):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu' if device == None else device
-        self.reranking_model = CrossEncoder(reranking, num_labels=2, max_length=256)
+        #self.reranking_model = CrossEncoder(reranking, num_labels=2, max_length=256)
         self.fact_verification_model = JointCrossEncoder.from_pretrained(fact_check).to(self.device)
         self.fact_verification_tokenizer = AutoTokenizer.from_pretrained(fact_check)
     
@@ -58,10 +58,10 @@ class Pipeline(CleanData):
         '''
         take one sample return the verdict and most relevant sentence
         '''
-        fact_list, _ = self.bm25(claim=claim, document=document)
-        evident, _, _ = self.reranking_inference(claim=claim, fact_list=fact_list)
+        fact_list, _ = self.bm25(claim=claim, document=document, k=5)
+        #evident, _, _ = self.reranking_inference(claim=claim, fact_list=fact_list)
         verdict = self.fact_verification_inference(claim=claim, fact_list=fact_list)
-        return evident, verdict
+        return fact_list[0], verdict
 
 
     def reranking_inference(self, claim:str, fact_list:List[str]):
