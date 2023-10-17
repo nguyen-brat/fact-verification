@@ -256,9 +256,9 @@ class JointCrossEncoderTrainer:
                        metrics,
                        ):
         with torch.no_grad():
-            print('Val evaluation prcessing !')
+            print('Val evaluation processing !')
             output = []
-            for fact_claims_ids, labels, is_positive, _ in tqdm(val_dataloader):
+            for fact_claims_ids, labels, is_positive, _ in val_dataloader:
                 multi_evident_logits, _, _ = self.model(fact_claims_ids, is_positive)
                 for metric in metrics:
                     metric.update(multi_evident_logits, labels)
