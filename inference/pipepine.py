@@ -37,7 +37,7 @@ class Pipeline(CleanData):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu' if device == None else device
         #self.reranking_model = CrossEncoder(reranking, num_labels=2, max_length=256)
         self.fact_verification_model = JointCrossEncoder.from_pretrained(fact_check, token="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").to(self.device)
-        self.fact_verification_tokenizer = AutoTokenizer.from_pretrained(fact_check)
+        self.fact_verification_tokenizer = AutoTokenizer.from_pretrained(fact_check, token="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")
     
     def __call__(
             self,
