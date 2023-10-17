@@ -60,7 +60,7 @@ class JointCrossEncoderTrainer:
             args.project_name,
             config={
                 "num_epochs": args.epochs,
-                "batch_size": args.batch,
+                "batch_size": args.batch_size,
                 "pretrained_model": args.model,
                 "num hard negative": args.num_hard_negatives,
                 "batch_size": args.batch_size,
@@ -68,7 +68,10 @@ class JointCrossEncoderTrainer:
                 "weight of class": args.weight,
                 "patient": args.patient,
             },
-            init_kwargs={"wandb": {"name": "nguyen-brat"}}
+            init_kwargs={"wandb": {
+                "name": "nguyen-brat",
+                "entity": "nguyen-brat"
+            }}
         )
         self.device = self.accelerator.device
 
@@ -213,7 +216,8 @@ class JointCrossEncoderTrainer:
                 self.accelerator.print(f'confusion matrix is {acc[1]}')
                 train_result["f1 score"] = acc[0]
             wandb_tracker.log(train_result)
-            wandb_tracker.log({"predictions confusion matrix":acc[1]}, commit=False)
+            table = wandb.Table(data=acc[1].tolist(), columns=["supported", "refuted", "nei"])
+            wandb_tracker.log({"predictions confusion matrix":table}, commit=False)
             train_loss_list.append(loss_value.item())
             self.accelerator.wait_for_everyone()
 
