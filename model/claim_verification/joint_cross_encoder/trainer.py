@@ -16,6 +16,7 @@ from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 import wandb
 import os
+from sentence_transformers import CrossEncoder
 
 os.environ["WANDB_API_KEY"] = "8028c3736f8fc4d7bf37f0f2ed19de39610efaa7"
 wandb.login()
@@ -99,6 +100,7 @@ class JointCrossEncoderTrainer:
             save_best_model: bool = True,
             show_progress_bar: bool = True,
             patient: int = 4,
+            evaluation_steps = 500,
             model_name="claim_verify_join_encoder_v2",
             push_to_hub=False,
     ):
@@ -157,6 +159,7 @@ class JointCrossEncoderTrainer:
         metrics = [MulticlassF1Score(num_classes=3), MulticlassConfusionMatrix(num_classes=3)]
 
         for epoch in range(epochs):
+            training_steps = 0
             print(f'epoch: {epoch+1}/{epochs} ')
             self.model.zero_grad()
             self.model.train()
@@ -172,6 +175,21 @@ class JointCrossEncoderTrainer:
                 optimizer.zero_grad()
                 if not skip_scheduler:
                     scheduler.step()
+                training_steps += 1
+                if evaluation_steps > 0 and training_steps % evaluation_steps == 0:
+                    self.model.eval()
+                    train_result = {
+                        "multiple evident loss":multi_evident_loss_value.item(),
+                        "single evident loss":single_evident_loss_value.item(),
+                    }
+                    if val_dataloader is not None:
+                        acc = self.val_evaluation(val_dataloader, metrics=metrics)
+                        train_result["f1 score"] = acc[0]
+                    wandb_tracker.log(train_result)
+                    table = wandb.Table(data=acc[1].tolist(), columns=["supported", "refuted", "nei"])
+                    wandb_tracker.log({"predictions confusion matrix":table}, commit=False)
+                    self.model.zero_grad()
+                    self.model.train()
 
             if val_dataloader is not None:
                 self.model.eval()
@@ -207,17 +225,20 @@ class JointCrossEncoderTrainer:
             #self.accelerator.print(f'loss value is {loss_value.item()}')
             self.accelerator.print(f'multiple evident loss value is {multi_evident_loss_value.item()}')
             self.accelerator.print(f'single evident loss value is {single_evident_loss_value.item()}')
-            train_result = {
-                "multiple evident loss":multi_evident_loss_value.item(),
-                "single evident loss":single_evident_loss_value.item(),
-            }
             if val_dataloader != None:
                 self.accelerator.print(f'f1 score is: {acc[0]}')
                 self.accelerator.print(f'confusion matrix is {acc[1]}')
-                train_result["f1 score"] = acc[0]
-            wandb_tracker.log(train_result)
-            table = wandb.Table(data=acc[1].tolist(), columns=["supported", "refuted", "nei"])
-            wandb_tracker.log({"predictions confusion matrix":table}, commit=False)
+            # train_result = {
+            #     "multiple evident loss":multi_evident_loss_value.item(),
+            #     "single evident loss":single_evident_loss_value.item(),
+            # }
+            # if val_dataloader != None:
+            #     self.accelerator.print(f'f1 score is: {acc[0]}')
+            #     self.accelerator.print(f'confusion matrix is {acc[1]}')
+            #     train_result["f1 score"] = acc[0]
+            # wandb_tracker.log(train_result)
+            # table = wandb.Table(data=acc[1].tolist(), columns=["supported", "refuted", "nei"])
+            # wandb_tracker.log({"predictions confusion matrix":table}, commit=False)
             train_loss_list.append(loss_value.item())
             self.accelerator.wait_for_everyone()
 
@@ -303,6 +324,7 @@ def main(args):
         patient=args.patient,
         model_name=args.model_name,
         push_to_hub=args.push_to_hub,
+        evaluation_steps=args.evaluation_steps,
     )
 
 def parse_args():
@@ -326,6 +348,7 @@ def parse_args():
     parser.add_argument("--patient", default=4, type=int)
     parser.add_argument("--device", type=str, default="cuda:0", help="Specify which gpu device to use.")
     parser.add_argument("--push_to_hub", default=True, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
+    parser.add_argument("--evaluation_steps", default=400, type=int)
     parser.add_argument("--project_name", default='fact verify UIT', type=str)
     args = parser.parse_args()
     return args

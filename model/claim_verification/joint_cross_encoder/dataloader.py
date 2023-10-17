@@ -52,11 +52,12 @@ class FactVerifyDataloader(RerankDataloader):
         facts = []
         for i, claim in enumerate(raw_batch.query):
             if inverse_relation[raw_batch.labels[i]] != "NEI":
-                sample = [raw_batch.positive_passages[i]] + raw_batch.fact_list[i]
+                sample = [raw_batch.positive_passages[i]] + raw_batch.fact_list[i]*batch.fact_per_claim # duplicate the fact here in case fact per claim not long enough
+                sample = sample[:batch.fact_per_claim]
                 ohot_positive_id = F.one_hot(torch.tensor(0), num_classes=batch.fact_per_claim).to(torch.float32).tolist()
             else:
                 ohot_positive_id = torch.zeros(size=(batch.fact_per_claim, )).tolist()
-                sample = raw_batch.fact_list[i]*batch.fact_per_claim
+                sample = raw_batch.fact_list[i]*batch.fact_per_claim # duplicate the fact here in case fact per claim not long enough
                 sample = sample[:batch.fact_per_claim]
 
             temp = list(zip(sample, ohot_positive_id))
@@ -70,7 +71,11 @@ class FactVerifyDataloader(RerankDataloader):
         random.shuffle(temp)
         claims, label, facts, batch.is_positive_ohot = zip(*temp)
         claims, label, facts, batch.is_positive_ohot = list(claims), list(label), list(facts), list(batch.is_positive_ohot)
-        batch.is_positive_ohot = torch.tensor(batch.is_positive_ohot, dtype=torch.float32)
+        try:
+            batch.is_positive_ohot = torch.tensor(batch.is_positive_ohot, dtype=torch.float32)
+        except:
+            print(claims)
+            print(batch.is_positive_ohot)
         batch.is_positive = torch.argmax(batch.is_positive_ohot, dim=1).type(torch.float32)
         batch.label = torch.tensor(label)
         batch.claims = claims
