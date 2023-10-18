@@ -123,6 +123,29 @@ class Visualization:
             result.append({'claim':self.preprocess_text(self.raw_data['claim'][i]), 'facts':fact_list})
 
         return result
+    
+
+    def visualize_result_test(self, test_path, predict_file_path, top_k=5):
+        result = {}
+        with open(test_path, 'r') as f:
+            raw_data = json.load(f)
+        with open(predict_file_path, 'r') as f:
+            predict = json.load(f)
+
+        for key in raw_data.keys():
+            raw_context = self.split_doc(raw_data[key]['context'])
+            bm25 = BM25Okapi([self.n_gram(txt) for txt in raw_context])
+            doc_scores = np.array(bm25.get_scores(self.n_gram(raw_data[key]['claim'].rstrip('.'))))
+            sort_idx = np.flip(np.argsort(doc_scores))
+            fact_list = [self.preprocess_text(raw_context[idx]) for idx in sort_idx[:top_k]]
+
+            result[key] = raw_data[key]
+            result[key]['fact_list'] = fact_list
+            result[key]['verdict'] = predict[key]['verdict']
+
+        with open('visualize.json', 'w') as f:
+            json.dump(result, f, ensure_ascii=False, indent=4)
+        return result
 
 
     @staticmethod

@@ -71,7 +71,7 @@ class JointCrossEncoderTrainer:
             },
             init_kwargs={"wandb": {
                 "name": "nguyen-brat",
-                "entity": "nguyen-brat"
+                "entity": "uit-challenge"
             }}
         )
         self.device = self.accelerator.device
