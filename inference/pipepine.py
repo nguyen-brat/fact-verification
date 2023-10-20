@@ -31,7 +31,7 @@ class Pipeline(CleanData):
     def __init__(
             self,
             #reranking='nguyen-brat/rerank_crossencoder',
-            fact_check='nguyen-brat/fact_verify_2',
+            fact_check='nguyen-brat/fact_verify_v2',
             device=None,
     ):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu' if device == None else device
