@@ -280,6 +280,7 @@ def main(args):
         num_hard_negatives = args.num_hard_negatives,
         batch_size = args.batch_size,
         remove_duplicate_context = args.remove_duplicate_context,
+        word_tokenize=args.word_tokenize,
     )
 
     train_data = FactVerifyDataloader(
@@ -330,6 +331,7 @@ def parse_args():
     parser.add_argument("--num_hard_negatives", default=4, type=int)
     parser.add_argument("--batch_size", default=8, type=int)
     parser.add_argument("--remove_duplicate_context", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--word_tokenize", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--epochs", default=30, type=int)
     parser.add_argument("--use_focal_loss", default=False, action=argparse.BooleanOptionalAction, help='whether to use focal loss or not')
     parser.add_argument("--weight", nargs='+', type=float, help="weight of label in loss")
