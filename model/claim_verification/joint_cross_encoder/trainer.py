@@ -64,6 +64,7 @@ class JointCrossEncoderTrainer:
                 "batch_size": args.batch_size,
                 "pretrained_model": args.model,
                 "num hard negative": args.num_hard_negatives,
+                "tokenize": args.word_tokenize,
                 "batch_size": args.batch_size,
                 "use_focal_loss": args.use_focal_loss,
                 "weight of class": args.weight,
