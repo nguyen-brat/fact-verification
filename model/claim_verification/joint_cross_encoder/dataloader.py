@@ -32,7 +32,7 @@ class FactVerifyDataloader(RerankDataloader):
     def __init__(
             self,
             data_path='data/ise-dsc01-warmup.json',
-            config:RerankDataloaderConfig=RerankDataloaderConfig(4,0),
+            config:RerankDataloaderConfig=RerankDataloaderConfig(num_hard_negatives=4, batch_size=8),
     ):
         super().__init__(data_path=data_path, config=config)
 

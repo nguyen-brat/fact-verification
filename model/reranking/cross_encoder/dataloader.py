@@ -7,6 +7,7 @@ import pandas as pd
 from typing import Dict, List, Tuple
 import json
 from glob import glob
+from underthesea import word_tokenize
 
 relation = {
     "SUPPORTED":0,
@@ -83,15 +84,15 @@ class RerankDataloader(Dataset):
         data = pd.DataFrame(raw_data)
         data['verdict'] = data['verdict'].map(lambda x: relation[x])
 
-        samples.query = data['claim'].to_list()
-        samples.positive_passages = data['evidence'].to_list()
+        samples.query = data['claim'].map(lambda x: self.word_segment(x)).to_list()
+        samples.positive_passages = data['evidence'].map(lambda x: self.word_segment(x)).to_list()
         samples.labels = data['verdict'].to_list()
         fact_list = []
         for i, label in enumerate(samples.labels):
             if label == 2:
-                fact_list.append(data['facts_list'][i])
+                fact_list.append([self.word_segment(sentence=sentence) for sentence in data['facts_list'][i]])
             else:
-                fact_list.append([data['evidence'][i]]+data['facts_list'][i])
+                fact_list.append([self.word_segment(data['evidence'][i])]+[self.word_segment(sentence=sentence) for sentence in data['facts_list'][i]])
         samples.fact_list = fact_list
 
         return samples
@@ -115,3 +116,9 @@ class RerankDataloader(Dataset):
         with open(file, 'r') as f:
             data = list(json.load(f).values())
         return data
+    
+
+    def word_segment(self, sentence):
+        if self.config.word_tokenize and sentence:
+            sentence = word_tokenize(sentence=sentence, format='text')
+        return sentence
