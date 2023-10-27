@@ -92,8 +92,8 @@ class FeatureExtract(nn.Module):
             model = 'sentence-transformers/stsb-xlm-r-multilingual',
     ):
         super().__init__()
-        self.model = AutoModel.from_pretrained(model)
-        self.extractor_config = AutoConfig.from_pretrained(model)
+        self.model = AutoModel.from_pretrained(model, token='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')
+        self.extractor_config = AutoConfig.from_pretrained(model, token='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')
 
     def forward(
             self,
