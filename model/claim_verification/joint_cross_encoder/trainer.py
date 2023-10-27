@@ -37,11 +37,16 @@ class JointCrossEncoderTrainer:
             self,
             args,
             config:JointCrossEncoderConfig,
+            pretrained_model = None
     ):
         self.config = config
         self.args = args
-        self.model = JointCrossEncoder(config=config)
-        self.tokenizer = AutoTokenizer.from_pretrained(config.model)
+        if not pretrained_model:
+            self.model = JointCrossEncoder(config=config)
+            self.tokenizer = AutoTokenizer.from_pretrained(config.model)
+        else:
+            self.model = JointCrossEncoder.from_pretrained(pretrained_model, token='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')
+            self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model, token='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')
 
         deepspeed_plugin = DeepSpeedPlugin(
             gradient_accumulation_steps=1,
@@ -301,7 +306,7 @@ def main(args):
         nins=args.num_hard_negatives+1,
     )
     model_config.max_length = args.max_length
-    trainer = JointCrossEncoderTrainer(args=args, config=model_config)
+    trainer = JointCrossEncoderTrainer(args=args, config=model_config, pretrained_model=args.pretrained_model)
     warnmup_step = math.ceil(len(train_dataloader) * 10 * 0.1)
     weight = args.weight if args.weight else [.3, .3, .3]
     trainer(
@@ -324,6 +329,7 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description="Arguments for rerank Trainning")
     parser.add_argument("--model", default='amberoad/bert-multilingual-passage-reranking-msmarco', type=str)
+    parser.add_argument("--pretrained_model", default=None, type=str)
     parser.add_argument("--max_length", default=256, type=int)
     parser.add_argument("--num_label", default=2, type=int)
     parser.add_argument("--train_data_path", default='data/clean_data/train.json', type=str)
