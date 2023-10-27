@@ -10,6 +10,9 @@ import numpy as np
 from enum import Enum
 import torch
 from ...reranking.cross_encoder.dataloader import RerankDataloader, RerankDataloaderConfig, relation, inverse_relation
+from huggingface_hub import login
+
+login("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")
 
 
 class CrossEncoderSamples(object):
