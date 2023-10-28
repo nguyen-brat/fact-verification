@@ -179,7 +179,13 @@ class JointCrossEncoder(PreTrainedModel):
             for evident_aggrerator in self.evident_aggrerators:
                 inputs_embed = evident_aggrerator(*[inputs_embed]*3)[0]
             multi_evident_logits = self.aggerator(*[inputs_embed]*3).squeeze() # (n_labels)
-        return F.softmax(multi_evident_logits, dim=-1) 
+        return F.softmax(multi_evident_logits, dim=-1)
+
+    def predict_single(
+            self,
+            inputs,
+    ) :
+        pass
 
 
     
