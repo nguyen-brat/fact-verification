@@ -154,19 +154,17 @@ class JointCrossEncoder(PreTrainedModel):
         self.positive_classify_linear = nn.Linear(in_features=self.feature_extractor.extractor_config.hidden_size, out_features=1)
 
     def forward(self, fact, is_positive):
-        with torch.cuda.amp.autocast():
-            fact_embed = self.feature_extractor(fact)
-            fact_embed = torch.reshape(fact_embed, shape=[-1, self.config.nins] + list(fact_embed.shape[1:])) # batch_size, num_evident, dim
-            positive_logits = self.positive_classify_linear(fact_embed).squeeze() # batch_size, n_evidents
+        fact_embed = self.feature_extractor(fact)
+        fact_embed = torch.reshape(fact_embed, shape=[-1, self.config.nins] + list(fact_embed.shape[1:])) # batch_size, num_evident, dim
+        positive_logits = self.positive_classify_linear(fact_embed).squeeze() # batch_size, n_evidents
 
-            multi_evident_output = fact_embed
-            for evident_aggrerator in self.evident_aggrerators:
-                multi_evident_output = evident_aggrerator(*[multi_evident_output]*3)[0]
-            multi_evident_logits = self.aggerator(*[multi_evident_output]*3) # (batch_size, n_labels)
+        multi_evident_output = fact_embed
+        for evident_aggrerator in self.evident_aggrerators:
+            multi_evident_output = evident_aggrerator(*[multi_evident_output]*3)[0]
+        multi_evident_logits = self.aggerator(*[multi_evident_output]*3) # (batch_size, n_labels)
 
-
-            single_evident_output = fact_embed[torch.arange(fact_embed.shape[0]).tolist(), is_positive.tolist(), :] # is positive is a 1-d tensor of id of positive sample (real sample) in every batch sample
-            single_evident_logits = self.single_evident_linear(single_evident_output) # batch_size, n_labels
+        single_evident_output = fact_embed[torch.arange(fact_embed.shape[0]).tolist(), is_positive.tolist(), :] # is positive is a 1-d tensor of id of positive sample (real sample) in every batch sample
+        single_evident_logits = self.single_evident_linear(single_evident_output) # batch_size, n_labels
 
         return multi_evident_logits, single_evident_logits, positive_logits
     

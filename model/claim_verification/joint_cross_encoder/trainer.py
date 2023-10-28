@@ -13,10 +13,9 @@ import math
 from typing import Type, Dict, List
 import os
 from tqdm import tqdm
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 import wandb
 import os
-from sentence_transformers import CrossEncoder
 
 os.environ["WANDB_API_KEY"] = "8028c3736f8fc4d7bf37f0f2ed19de39610efaa7"
 wandb.login()
@@ -48,19 +47,19 @@ class JointCrossEncoderTrainer:
             self.model = JointCrossEncoder.from_pretrained(pretrained_model, token='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')
             self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model, token='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')
 
-        # deepspeed_plugin = DeepSpeedPlugin(
-        #     gradient_accumulation_steps=1,
-        #     gradient_clipping=1,
-        #     offload_optimizer_device='cpu',
-        #     offload_param_device='cpu',
-        #     zero3_init_flag=True,
-        #     zero3_save_16bit_model=True,
-        #     zero_stage=3,
-        # )
+        deepspeed_plugin = DeepSpeedPlugin(
+            gradient_accumulation_steps=1,
+            gradient_clipping=1,
+            offload_optimizer_device='cpu',
+            offload_param_device='cpu',
+            zero3_init_flag=True,
+            zero3_save_16bit_model=True,
+            zero_stage=3,
+        )
         self.accelerator = Accelerator(
             log_with="wandb",
             mixed_precision='fp16',
-            #deepspeed_plugin=deepspeed_plugin,
+            deepspeed_plugin=deepspeed_plugin,
         )
         self.accelerator.init_trackers(
             args.project_name,
@@ -163,7 +162,7 @@ class JointCrossEncoderTrainer:
         acc_list = []
 
         metrics = [MulticlassF1Score(num_classes=3), MulticlassConfusionMatrix(num_classes=3)]
-
+        scaler = torch.cuda.amp.GradScaler() ########################
         for epoch in range(epochs):
             training_steps = 0
             print(f'epoch: {epoch+1}/{epochs} ')
@@ -171,18 +170,26 @@ class JointCrossEncoderTrainer:
             self.model.train()
 
             for fact_claims_ids, labels, is_positive, is_positive_ohot in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
-                multi_evident_logits, single_evident_logits, positive_logits = self.model(fact_claims_ids, is_positive)
-                multi_evident_loss_value = multi_loss_fct(multi_evident_logits, labels)
-                single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
-                #is_positive_loss_value = binary_loss_fct(positive_logits, is_positive_ohot)
-                #loss_value = (multi_evident_loss_value + single_evident_loss_value)/2
+                with torch.cuda.amp.autocast(): ###########
+                    multi_evident_logits, single_evident_logits, positive_logits = self.model(fact_claims_ids, is_positive)
+                    multi_evident_loss_value = multi_loss_fct(multi_evident_logits, labels)
+                    single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
+                # is_positive_loss_value = binary_loss_fct(positive_logits, is_positive_ohot)
+                # loss_value = (multi_evident_loss_value + single_evident_loss_value)/2
                 loss_value = multi_evident_loss_value
+                scale_before_step = scaler.get_scale() #################
+                #scaler.scale(loss_value).backward() #################
                 self.accelerator.backward(loss_value)
-                optimizer.step()
-                optimizer.zero_grad()
+                scaler.unscale_(optimizer) ####################
+                scaler.step(optimizer) ########
+                scaler.update() ############
+                #optimizer.step()
+                skip_scheduler = scaler.get_scale() != scale_before_step ##########
                 if not skip_scheduler:
                     scheduler.step()
+                optimizer.zero_grad()
                 training_steps += 1
+
                 if evaluation_steps > 0 and training_steps % evaluation_steps == 0:
                     self.model.eval()
                     train_result = {
@@ -195,12 +202,12 @@ class JointCrossEncoderTrainer:
                     wandb_tracker.log(train_result)
                     table = wandb.Table(data=acc[1].tolist(), columns=["supported", "refuted", "nei"])
                     wandb_tracker.log({"predictions confusion matrix":table}, commit=False)
-                    self.model.zero_grad()
                     self.model.train()
 
             if val_dataloader is not None:
                 self.model.eval()
-                acc = self.val_evaluation(val_dataloader, metrics=metrics)
+                with torch.cuda.amp.autocast(): ########### 
+                    acc = self.val_evaluation(val_dataloader, metrics=metrics)
                 acc_list.append(acc)
                 if (acc[0] > self.best_score) and save_best_model:
                     patient_count = 0
