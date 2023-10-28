@@ -47,30 +47,34 @@ class Pipeline(CleanData):
             claim:str,
             document:str,
             word_segmentation=False,
+            mode='multiple',
     ):
         '''
         Pipeline to check the claim
         return the verdict and most relevant sentence
         '''
-        return self.predict(claim, document, word_segmentation)
+        return self.predict(claim, document, word_segmentation, mode=mode)
 
     def predict(
             self,
             claim:str,
             document:str,
             word_segmentation=False,
+            mode='multiple',
     ):
         '''
         take one sample return the verdict and most relevant sentence
         '''
         fact_list, _ = self.bm25(claim=claim, document=document, k=5)
+        claim = self.clean(claim)
+        fact_list = [self.clean(fact) for fact in fact_list]
         evidence = fact_list[0]
         random.shuffle(fact_list)
         #evident, _, _ = self.reranking_inference(claim=claim, fact_list=fact_list)
         if word_segmentation:
             claim = word_tokenize(claim, format='text')
             fact_list = [word_tokenize(fact, format='text') for fact in fact_list]
-        verdict = self.fact_verification_inference(claim=claim, fact_list=fact_list)
+        verdict = self.fact_verification_inference(claim=claim, fact_list=fact_list, mode=mode)
         return evidence, verdict
 
 
@@ -91,14 +95,27 @@ class Pipeline(CleanData):
         reranking_answer.reverse()
         return reranking_answer[0], reranking_answer, reranking_score
     
-    def fact_verification_inference(self, claim, fact_list):
-        claim = self.preprocess_text(claim)
-        fact_input_id = self.fact_verification_tokenizer([claim]*len(fact_list), fact_list, return_tensors='pt', max_length=256, padding='max_length', pad_to_max_length=True, truncation=True).to(self.device)
-        logit = self.fact_verification_model.predict(fact_input_id)
-        output = torch.argmax(logit)
-        return inverse_relation[output.item()]
+    def fact_verification_inference(self, claim, fact_list, mode='multiple'):
+        if mode=='multiple':
+            fact_input_id = self.fact_verification_tokenizer([claim]*len(fact_list), fact_list, return_tensors='pt', max_length=256, padding='max_length', pad_to_max_length=True, truncation=True).to(self.device)
+            proba = self.fact_verification_model.predict(fact_input_id)
+            output = torch.argmax(proba)
+            return inverse_relation[output.item()]
+        elif mode=='single':
+            claim = self.preprocess_text(claim)
+            fact_input_id = self.fact_verification_tokenizer([claim, fact_list[0]], max_length=256, padding=True, truncation=True).to(self.device)
+            proba = self.fact_verification_model.predict_single(fact_input_id)
+            output = torch.argmax(proba)
+            return inverse_relation[output.item()]
 
-    def output_file(self, input_path='data/test/ise-dsc01-public-test-offcial.json', output_path='log/output', word_segmentation=False):
+
+    def output_file(
+            self,
+            input_path='data/test/ise-dsc01-public-test-offcial.json',
+            output_path='log/output',
+            word_segmentation=False,
+            mode='multiple',
+    ):
         '''
         input file path need to predict
         create the result file
@@ -109,7 +126,7 @@ class Pipeline(CleanData):
         with open(input_path, 'r') as f:
             data = json.load(f)
         for key in tqdm(data.keys()):
-            evident, verdict = self.predict(data[key]['claim'], data[key]['context'], word_segmentation=word_segmentation)
+            evident, verdict = self.predict(data[key]['claim'], data[key]['context'], word_segmentation=word_segmentation, mode=mode)
             result[key] = {
                 "verdict":verdict,
                 "evidence":evident if verdict != "NEI" else ""
@@ -122,7 +139,8 @@ def parse_args():
     Parse arguments from command line.
     """
     parser = argparse.ArgumentParser(description="Arguments for pipeline inference")
-    parser.add_argument("--fact_verify_model_name", default='nguyen-brat/fact_verify_v3', type=str)
+    parser.add_argument("--fact_verify_model_name", default='nguyen-brat/fact_verify_v3', type=str, help='fact checking model path or huggingface path')
+    parser.add_argument("--mode", default='multiple', type=str, help='only choose single or multiple')
     parser.add_argument("--rerank_model_name", default=None, type=str)
     parser.add_argument("--word_tokenize", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--input_path", default='data/test/ise-dsc01-public-test-offcial.json', type=str)
@@ -133,10 +151,10 @@ def parse_args():
 def pipeline_run():
     args = parse_args()
     pipe = Pipeline(fact_check=args.fact_verify_model_name)
-    pipe.output_file(args.input_path, args.output_path, args.word_tokenize)
+    pipe.output_file(args.input_path, args.output_path, args.word_tokenize, args.mode)
 
 if __name__ == "__main__":
     args = parse_args()
     pipe = Pipeline(fact_check=args.fact_verify_model_name)
-    pipe.output_file(args.input_path, args.output_path, args.word_tokenize)
+    pipe.output_file(args.input_path, args.output_path, args.word_tokenize, args.mode)
     

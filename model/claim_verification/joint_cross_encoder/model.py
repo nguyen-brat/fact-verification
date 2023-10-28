@@ -188,7 +188,7 @@ class JointCrossEncoder(PreTrainedModel):
         with torch.no_grad():
             inputs_embed = self.feature_extractor(inputs)
             logits = self.single_evident_linear(inputs_embed)
-        return logits
+        return F.softmax(logits, dim=-1)
 
 
     
