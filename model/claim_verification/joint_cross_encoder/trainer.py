@@ -14,6 +14,7 @@ from typing import Type, Dict, List
 import os
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer, CrossEncoder
+from peft import get_peft_model, LoraConfig, TaskType
 import wandb
 import os
 
@@ -36,7 +37,8 @@ class JointCrossEncoderTrainer:
             self,
             args,
             config:JointCrossEncoderConfig,
-            pretrained_model = None
+            pretrained_model = None,
+            use_lora:bool=False
     ):
         self.config = config
         self.args = args
@@ -46,6 +48,15 @@ class JointCrossEncoderTrainer:
         else:
             self.model = JointCrossEncoder.from_pretrained(pretrained_model, token='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')
             self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model, token='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')
+        if use_lora:
+            peft_config = LoraConfig(
+                task_type=TaskType.FEATURE_EXTRACTION, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1
+            )
+            self.model = get_peft_model(self.model, peft_config)
+            print('*********************')
+            print(self.model.print_trainable_parameters())
+            print('*********************')
+
 
         deepspeed_plugin = DeepSpeedPlugin(
             gradient_accumulation_steps=1,
@@ -308,7 +319,12 @@ def main(args):
         nins=args.num_hard_negatives+1,
     )
     model_config.max_length = args.max_length
-    trainer = JointCrossEncoderTrainer(args=args, config=model_config, pretrained_model=args.pretrained_model)
+    trainer = JointCrossEncoderTrainer(
+        args=args,
+        config=model_config,
+        pretrained_model=args.pretrained_model,
+        use_lora=args.use_lora
+    )
     warnmup_step = math.ceil(len(train_dataloader) * 10 * 0.1)
     weight = args.weight if args.weight else [.3, .3, .3]
     trainer(
@@ -332,6 +348,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Arguments for fact verify Trainning")
     parser.add_argument("--model", default='amberoad/bert-multilingual-passage-reranking-msmarco', type=str)
     parser.add_argument("--pretrained_model", default=None, type=str)
+    parser.add_argument("--use_lora", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--max_length", default=256, type=int)
     parser.add_argument("--num_label", default=2, type=int)
     parser.add_argument("--train_data_path", default='data/clean_data/train.json', type=str)
