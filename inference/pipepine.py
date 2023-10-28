@@ -10,6 +10,7 @@ from tqdm import tqdm
 from underthesea import word_tokenize
 import argparse
 import os
+import random
 
 
 relation = {
@@ -45,30 +46,32 @@ class Pipeline(CleanData):
             self,
             claim:str,
             document:str,
-            word_tokenize=False,
+            word_segmentation=False,
     ):
         '''
         Pipeline to check the claim
         return the verdict and most relevant sentence
         '''
-        return self.predict(claim, document, word_tokenize)
+        return self.predict(claim, document, word_segmentation)
 
     def predict(
             self,
             claim:str,
             document:str,
-            word_tokenize=False,
+            word_segmentation=False,
     ):
         '''
         take one sample return the verdict and most relevant sentence
         '''
         fact_list, _ = self.bm25(claim=claim, document=document, k=5)
+        evidence = fact_list[0]
+        random.shuffle(fact_list)
         #evident, _, _ = self.reranking_inference(claim=claim, fact_list=fact_list)
-        if word_tokenize:
+        if word_segmentation:
             claim = word_tokenize(claim, format='text')
-            fact_list = [word_tokenize(fact) for fact in fact_list]
+            fact_list = [word_tokenize(fact, format='text') for fact in fact_list]
         verdict = self.fact_verification_inference(claim=claim, fact_list=fact_list)
-        return fact_list[0], verdict
+        return evidence, verdict
 
 
     def reranking_inference(self, claim:str, fact_list:List[str]):
@@ -95,7 +98,7 @@ class Pipeline(CleanData):
         output = torch.argmax(logit)
         return inverse_relation[output.item()]
 
-    def output_file(self, input_path='data/test/ise-dsc01-public-test-offcial.json', output_path='log/output', word_tokenize=False):
+    def output_file(self, input_path='data/test/ise-dsc01-public-test-offcial.json', output_path='log/output', word_segmentation=False):
         '''
         input file path need to predict
         create the result file
@@ -106,7 +109,7 @@ class Pipeline(CleanData):
         with open(input_path, 'r') as f:
             data = json.load(f)
         for key in tqdm(data.keys()):
-            evident, verdict = self.predict(data[key]['claim'], data[key]['context'], word_tokenize=word_tokenize)
+            evident, verdict = self.predict(data[key]['claim'], data[key]['context'], word_segmentation=word_segmentation)
             result[key] = {
                 "verdict":verdict,
                 "evidence":evident if verdict != "NEI" else ""
