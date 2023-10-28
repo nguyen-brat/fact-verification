@@ -185,7 +185,10 @@ class JointCrossEncoder(PreTrainedModel):
             self,
             inputs,
     ) :
-        pass
+        with torch.no_grad():
+            inputs_embed = self.feature_extractor(inputs)
+            logits = self.single_evident_linear(inputs_embed)
+        return logits
 
 
     
