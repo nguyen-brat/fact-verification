@@ -327,7 +327,7 @@ def parse_args():
     """
     Parse arguments from command line.
     """
-    parser = argparse.ArgumentParser(description="Arguments for rerank Trainning")
+    parser = argparse.ArgumentParser(description="Arguments for fact verify Trainning")
     parser.add_argument("--model", default='amberoad/bert-multilingual-passage-reranking-msmarco', type=str)
     parser.add_argument("--pretrained_model", default=None, type=str)
     parser.add_argument("--max_length", default=256, type=int)

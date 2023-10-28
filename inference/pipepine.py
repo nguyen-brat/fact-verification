@@ -7,6 +7,8 @@ import numpy as np
 from typing import List, Union, Tuple
 import json
 from tqdm import tqdm
+from underthesea import word_tokenize
+import argparse
 import os
 
 
@@ -43,23 +45,28 @@ class Pipeline(CleanData):
             self,
             claim:str,
             document:str,
+            word_tokenize=False,
     ):
         '''
         Pipeline to check the claim
         return the verdict and most relevant sentence
         '''
-        return self.predict(claim, document)
+        return self.predict(claim, document, word_tokenize)
 
     def predict(
             self,
             claim:str,
             document:str,
+            word_tokenize=False,
     ):
         '''
         take one sample return the verdict and most relevant sentence
         '''
         fact_list, _ = self.bm25(claim=claim, document=document, k=5)
         #evident, _, _ = self.reranking_inference(claim=claim, fact_list=fact_list)
+        if word_tokenize:
+            claim = word_tokenize(claim, format='text')
+            fact_list = [word_tokenize(fact) for fact in fact_list]
         verdict = self.fact_verification_inference(claim=claim, fact_list=fact_list)
         return fact_list[0], verdict
 
@@ -88,7 +95,7 @@ class Pipeline(CleanData):
         output = torch.argmax(logit)
         return inverse_relation[output.item()]
 
-    def output_file(self, input_path='data/test/ise-dsc01-public-test-offcial.json', output_path='log/output'):
+    def output_file(self, input_path='data/test/ise-dsc01-public-test-offcial.json', output_path='log/output', word_tokenize=False):
         '''
         input file path need to predict
         create the result file
@@ -99,7 +106,7 @@ class Pipeline(CleanData):
         with open(input_path, 'r') as f:
             data = json.load(f)
         for key in tqdm(data.keys()):
-            evident, verdict = self.predict(data[key]['claim'], data[key]['context'])
+            evident, verdict = self.predict(data[key]['claim'], data[key]['context'], word_tokenize=word_tokenize)
             result[key] = {
                 "verdict":verdict,
                 "evidence":evident if verdict != "NEI" else ""
@@ -107,9 +114,26 @@ class Pipeline(CleanData):
         with open(os.path.join(output_path, 'public_result.json'), 'w') as f:
             json.dump(result, f, ensure_ascii=False, indent=4)
             
+def parse_args():
+    """
+    Parse arguments from command line.
+    """
+    parser = argparse.ArgumentParser(description="Arguments for pipeline inference")
+    parser.add_argument("--fact_verify_model_name", default='nguyen-brat/fact_verify_v3', type=str)
+    parser.add_argument("--rerank_model_name", default=None, type=str)
+    parser.add_argument("--word_tokenize", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--input_path", default='data/test/ise-dsc01-public-test-offcial.json', type=str)
+    parser.add_argument("--output_path", default='log/output', type=str)
+    args = parser.parse_args()
+    return args
 
+def pipeline_run():
+    args = parse_args()
+    pipe = Pipeline(fact_check=args.fact_verify_model_name)
+    pipe.output_file(args.input_path, args.output_path, args.word_tokenize)
 
 if __name__ == "__main__":
-    pipe = Pipeline()
-    pipe.output_file()
+    args = parse_args()
+    pipe = Pipeline(fact_check=args.fact_verify_model_name)
+    pipe.output_file(args.input_path, args.output_path, args.word_tokenize)
     
