@@ -66,8 +66,8 @@ class Pipeline(CleanData):
         take one sample return the verdict and most relevant sentence
         '''
         fact_list, _ = self.bm25(claim=claim, document=document, k=5)
-        claim = self.clean(claim)
-        fact_list = [self.clean(fact) for fact in fact_list]
+        claim = self.preprocess_text(claim)
+        fact_list = [self.preprocess_text(fact) for fact in fact_list]
         evidence = fact_list[0]
         random.shuffle(fact_list)
         #evident, _, _ = self.reranking_inference(claim=claim, fact_list=fact_list)
