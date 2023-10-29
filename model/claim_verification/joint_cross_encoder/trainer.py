@@ -191,8 +191,8 @@ class JointCrossEncoderTrainer:
                     multi_evident_loss_value = multi_loss_fct(multi_evident_logits, labels)
                     single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
                 # is_positive_loss_value = binary_loss_fct(positive_logits, is_positive_ohot)
-                # loss_value = (multi_evident_loss_value + single_evident_loss_value)/2
-                loss_value = multi_evident_loss_value
+                loss_value = multi_evident_loss_value*0.9 + single_evident_loss_value*0.1
+                #loss_value = multi_evident_loss_value
                 self.accelerator.backward(loss_value)
                 optimizer.step()
                 scheduler.step()
