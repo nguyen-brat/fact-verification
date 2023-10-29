@@ -56,7 +56,7 @@ class JointCrossEncoderTrainer:
                 lora_alpha=32,
                 lora_dropout=0.1,
                 target_modules='feature_extractor.*.query_key_value|feature_extractor.*.dense|evident_aggrerators.*.out_proj',
-                modules_to_save=['aggerator', 'single_evident_linear', 'positive_classify_linear']
+                modules_to_save=['aggerator', 'single_evident_linear']
             )
             self.model = get_peft_model(self.model, peft_config)
             print('*********************')
@@ -187,7 +187,7 @@ class JointCrossEncoderTrainer:
             for fact_claims_ids, labels, is_positive, is_positive_ohot in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
                 optimizer.zero_grad()
                 with torch.cuda.amp.autocast(): ###########
-                    multi_evident_logits, single_evident_logits, positive_logits = self.model(fact_claims_ids, is_positive)
+                    multi_evident_logits, single_evident_logits = self.model(fact_claims_ids, is_positive)
                     multi_evident_loss_value = multi_loss_fct(multi_evident_logits, labels)
                     single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
                     # is_positive_loss_value = binary_loss_fct(positive_logits, is_positive_ohot)
