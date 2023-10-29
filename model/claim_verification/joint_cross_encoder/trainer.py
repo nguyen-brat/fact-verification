@@ -76,7 +76,7 @@ class JointCrossEncoderTrainer:
         self.accelerator = Accelerator(
             log_with="wandb",
             mixed_precision='fp16',
-            deepspeed_plugin=deepspeed_plugin,
+            #deepspeed_plugin=deepspeed_plugin,
         )
         self.accelerator.init_trackers(
             args.project_name,
@@ -186,10 +186,10 @@ class JointCrossEncoderTrainer:
 
             for fact_claims_ids, labels, is_positive, is_positive_ohot in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
                 optimizer.zero_grad()
-                #with torch.cuda.amp.autocast(): ###########
-                multi_evident_logits, single_evident_logits, positive_logits = self.model(fact_claims_ids, is_positive)
-                multi_evident_loss_value = multi_loss_fct(multi_evident_logits, labels)
-                single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
+                with torch.cuda.amp.autocast(): ###########
+                    multi_evident_logits, single_evident_logits, positive_logits = self.model(fact_claims_ids, is_positive)
+                    multi_evident_loss_value = multi_loss_fct(multi_evident_logits, labels)
+                    single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
                 # is_positive_loss_value = binary_loss_fct(positive_logits, is_positive_ohot)
                 # loss_value = (multi_evident_loss_value + single_evident_loss_value)/2
                 loss_value = multi_evident_loss_value
@@ -216,7 +216,6 @@ class JointCrossEncoderTrainer:
             # epoch evaluation
             if val_dataloader is not None:
                 self.model.eval()
-                #with torch.cuda.amp.autocast(): #####################
                 acc = self.val_evaluation(val_dataloader, metrics=metrics)
                 acc_list.append(acc)
                 if (acc[0] > self.best_score) and save_best_model:
@@ -269,16 +268,16 @@ class JointCrossEncoderTrainer:
                        metrics,
                        ):
         with torch.no_grad():
-            #with torch.cuda.amp.autocast(): ###################
-            print('Val evaluation processing !')
-            output = []
-            for fact_claims_ids, labels, is_positive, _ in val_dataloader:
-                multi_evident_logits, _, _ = self.model(fact_claims_ids, is_positive)
+            with torch.cuda.amp.autocast(): ###################
+                print('Val evaluation processing !')
+                output = []
+                for fact_claims_ids, labels, is_positive, _ in val_dataloader:
+                    multi_evident_logits, _, _ = self.model(fact_claims_ids, is_positive)
+                    for metric in metrics:
+                        metric.update(multi_evident_logits, labels)
                 for metric in metrics:
-                    metric.update(multi_evident_logits, labels)
-            for metric in metrics:
-                output.append(metric.compute())
-                metric.reset()
+                    output.append(metric.compute())
+                    metric.reset()
         return output
     
     def save_during_training(self, output_path):
