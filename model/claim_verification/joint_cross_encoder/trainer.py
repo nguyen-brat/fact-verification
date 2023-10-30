@@ -60,10 +60,10 @@ class JointCrossEncoderTrainer:
                 target_modules='feature_extractor.*.query_key_value*|feature_extractor.*.dense*|evident_aggrerators.*.out_proj',
                 modules_to_save=[
                     'aggerator',
-                    'single_evident_linear',
-                    'feature_extractor.*.post_attention_layernorm',
-                    'feature_extractor.*.input_layernorm',
-                    'feature_extractor.*.mlp',
+                    #'single_evident_linear',
+                    #'feature_extractor.*.post_attention_layernorm',
+                    #'feature_extractor.*.input_layernorm',
+                    #'feature_extractor.*.mlp',
                 ]
             )
             self.model = get_peft_model(self.model, peft_config)
