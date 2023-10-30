@@ -61,8 +61,6 @@ class JointCrossEncoderTrainer:
                 modules_to_save=[
                     'aggerator',
                     #'single_evident_linear',
-                    'feature_extractor.*.post_attention_layernorm*',
-                    'feature_extractor.*.input_layernorm*',
                 ]
             )
             self.model = get_peft_model(self.model, peft_config)
@@ -83,7 +81,7 @@ class JointCrossEncoderTrainer:
         self.accelerator = Accelerator(
             log_with="wandb",
             mixed_precision='fp16',
-            #kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)],
+            kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)],
             #deepspeed_plugin=deepspeed_plugin,
         )
         self.accelerator.init_trackers(
