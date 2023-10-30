@@ -57,7 +57,7 @@ class JointCrossEncoderTrainer:
                 lora_alpha=32,
                 bias='all',
                 lora_dropout=0.1,
-                target_modules='feature_extractor.*.query_key_value*|feature_extractor.*.mlp*|feature_extractor.*.dense*|evident_aggrerators.*.out_proj',
+                target_modules='feature_extractor.*.query_key_value*|feature_extractor.*.mlp.dense_h_to_4h|feature_extractor.*.mlp.dense_4h_to_h|feature_extractor.*.dense*|evident_aggrerators.*.out_proj',
                 modules_to_save=[
                     'aggerator',
                     #'single_evident_linear',
