@@ -55,9 +55,14 @@ class JointCrossEncoderTrainer:
                 inference_mode=False,
                 r=8,
                 lora_alpha=32,
+                bias='all',
                 lora_dropout=0.1,
-                target_modules='feature_extractor.*.query_key_value*|feature_extractor.*.dense*|evident_aggrerators.*.out_proj',
-                modules_to_save=['aggerator', 'single_evident_linear']
+                target_modules='feature_extractor.*.query_key_value|feature_extractor.*.dense|evident_aggrerators.*.out_proj',
+                modules_to_save=[
+                    'aggerator',
+                    'single_evident_linear',
+                    #'feature_extractor.*.post_attention_layernorm'
+                ]
             )
             self.model = get_peft_model(self.model, peft_config)
             print('*********************')
@@ -77,7 +82,7 @@ class JointCrossEncoderTrainer:
         self.accelerator = Accelerator(
             log_with="wandb",
             mixed_precision='fp16',
-            kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)],
+            #kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)],
             #deepspeed_plugin=deepspeed_plugin,
         )
         self.accelerator.init_trackers(
@@ -274,7 +279,7 @@ class JointCrossEncoderTrainer:
                 print('Val evaluation processing !')
                 output = []
                 for fact_claims_ids, labels, is_positive, _ in val_dataloader:
-                    multi_evident_logits, _, _ = self.model(fact_claims_ids, is_positive)
+                    multi_evident_logits, _ = self.model(fact_claims_ids, is_positive)
                     for metric in metrics:
                         metric.update(multi_evident_logits, labels)
                 for metric in metrics:
