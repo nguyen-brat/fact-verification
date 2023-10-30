@@ -186,7 +186,7 @@ class JointCrossEncoderTrainer:
         metrics = [MulticlassF1Score(num_classes=3), MulticlassConfusionMatrix(num_classes=3)]
         for epoch in range(epochs):
             training_steps = 0
-            print(f'epoch: {epoch+1}/{epochs} ')
+            self.accelerator.print(f'epoch: {epoch+1}/{epochs} ')
             self.model.zero_grad()
             self.model.train()
 
@@ -275,7 +275,7 @@ class JointCrossEncoderTrainer:
                        ):
         with torch.no_grad():
             with torch.cuda.amp.autocast(): ###################
-                print('Val evaluation processing !')
+                self.accelerator.print('Val evaluation processing !')
                 output = []
                 for fact_claims_ids, labels, is_positive, _ in val_dataloader:
                     multi_evident_logits, _ = self.model(fact_claims_ids, is_positive)
