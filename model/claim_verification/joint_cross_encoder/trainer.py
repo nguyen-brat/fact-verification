@@ -77,7 +77,7 @@ class JointCrossEncoderTrainer:
         self.accelerator = Accelerator(
             log_with="wandb",
             mixed_precision='fp16',
-            kwargs_handlers=DistributedDataParallelKwargs(find_unused_parameters=True)
+            kwargs_handlers=[DistributedDataParallelKwargs(find_unused_parameters=True)],
             #deepspeed_plugin=deepspeed_plugin,
         )
         self.accelerator.init_trackers(
