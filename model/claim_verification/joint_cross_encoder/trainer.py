@@ -55,7 +55,7 @@ class JointCrossEncoderTrainer:
                 r=8,
                 lora_alpha=32,
                 lora_dropout=0.1,
-                target_modules='feature_extractor.*.query_key_value*|feature_extractor.*.dense*|feature_extractor.*.input_layernorm*|feature_extractor.*.post_attention_layernorm*|evident_aggrerators.*.out_proj',
+                target_modules='feature_extractor.*.query_key_value*|feature_extractor.*.dense*|evident_aggrerators.*.out_proj',
                 modules_to_save=['aggerator', 'single_evident_linear']
             )
             self.model = get_peft_model(self.model, peft_config)
