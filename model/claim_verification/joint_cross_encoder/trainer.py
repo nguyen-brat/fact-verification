@@ -48,6 +48,7 @@ class JointCrossEncoderTrainer:
         else:
             self.model = JointCrossEncoder.from_pretrained(pretrained_model, token='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')
             self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model, token='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')
+        self.model = torch.nn.parallel.DistributedDataParallel(self.model, find_unused_parameters=True)
         if use_lora:
             peft_config = LoraConfig(
                 #task_type=TaskType.FEATURE_EXTRACTION,
@@ -56,7 +57,7 @@ class JointCrossEncoderTrainer:
                 lora_alpha=32,
                 lora_dropout=0.1,
                 target_modules='feature_extractor.*.query_key_value*|feature_extractor.*.dense*|evident_aggrerators.*.out_proj',
-                modules_to_save=['aggerator', 'single_evident_linear']
+                modules_to_save=['aggerator', 'single_evident_linear', '']
             )
             self.model = get_peft_model(self.model, peft_config)
             print('*********************')
