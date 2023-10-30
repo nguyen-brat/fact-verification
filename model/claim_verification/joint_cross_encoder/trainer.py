@@ -57,7 +57,7 @@ class JointCrossEncoderTrainer:
                 lora_alpha=32,
                 bias='all',
                 lora_dropout=0.1,
-                target_modules='feature_extractor.*.query_key_value|feature_extractor.*.dense|evident_aggrerators.*.out_proj',
+                target_modules='feature_extractor.*.query_key_value*|feature_extractor.*.dense*|evident_aggrerators.*.out_proj',
                 modules_to_save=[
                     'aggerator',
                     'single_evident_linear',
@@ -70,15 +70,15 @@ class JointCrossEncoderTrainer:
             print('*********************')
 
 
-        deepspeed_plugin = DeepSpeedPlugin(
-            gradient_accumulation_steps=1,
-            gradient_clipping=1,
-            offload_optimizer_device='cpu',
-            offload_param_device='cpu',
-            zero3_init_flag=True,
-            zero3_save_16bit_model=True,
-            zero_stage=3,
-        )
+        # deepspeed_plugin = DeepSpeedPlugin(
+        #     gradient_accumulation_steps=1,
+        #     gradient_clipping=1,
+        #     offload_optimizer_device='cpu',
+        #     offload_param_device='cpu',
+        #     zero3_init_flag=True,
+        #     zero3_save_16bit_model=True,
+        #     zero_stage=3,
+        # )
         self.accelerator = Accelerator(
             log_with="wandb",
             mixed_precision='fp16',
