@@ -192,7 +192,7 @@ class JointCrossEncoderTrainer:
 
             for fact_claims_ids, labels, is_positive, is_positive_ohot in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
                 optimizer.zero_grad()
-                with torch.cuda.amp.autocast(): ###########
+                with self.accelerator.autocast(): ###########
                     multi_evident_logits, single_evident_logits = self.model(fact_claims_ids, is_positive)
                     multi_evident_loss_value = multi_loss_fct(multi_evident_logits, labels)
                     single_evident_loss_value = multi_loss_fct(single_evident_logits, labels)
@@ -230,7 +230,8 @@ class JointCrossEncoderTrainer:
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
                     if push_to_hub:
-                        self.save_to_hub(model_name)
+                        if self.accelerator.is_main_process:
+                            self.save_to_hub(model_name)
                 elif patient_count == patient:
                     break
                 else:
@@ -244,7 +245,8 @@ class JointCrossEncoderTrainer:
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
                     if push_to_hub:
-                        self.save_to_hub(model_name)
+                        if self.accelerator.is_main_process:
+                            self.save_to_hub(model_name)
                 elif patient_count == patient:
                     break
                 else:
@@ -264,7 +266,8 @@ class JointCrossEncoderTrainer:
             self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
             if push_to_hub:
-                self.save_to_hub(model_name)
+                if self.accelerator.is_main_process:
+                    self.save_to_hub(model_name)
 
         self.accelerator.end_training()
         return train_loss_list, acc_list
@@ -274,7 +277,7 @@ class JointCrossEncoderTrainer:
                        metrics,
                        ):
         with torch.no_grad():
-            with torch.cuda.amp.autocast(): ###################
+            with self.accelerator.autocast(): ###################
                 self.accelerator.print('Val evaluation processing !')
                 output = []
                 for fact_claims_ids, labels, is_positive, _ in val_dataloader:
