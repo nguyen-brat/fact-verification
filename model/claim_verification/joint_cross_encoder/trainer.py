@@ -135,11 +135,11 @@ class JointCrossEncoderTrainer:
             model_name="claim_verify_join_encoder_v2",
             push_to_hub=False,
     ):
-        if push_to_hub:
-            self.accelerator.wait_for_everyone()
-            self.tokenizer.push_to_hub(model_name, token='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', private=True)
-        self.accelerator.wait_for_everyone()
-        self.tokenizer.save_pretrained(output_path)
+        # if push_to_hub:
+        #     self.accelerator.wait_for_everyone()
+        #     self.tokenizer.push_to_hub(model_name, token='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', private=True)
+        # self.accelerator.wait_for_everyone()
+        # self.tokenizer.save_pretrained(output_path)
 
         wandb_tracker = self.accelerator.get_tracker("wandb")
         train_dataloader.collate_fn = self.smart_batching_collate
