@@ -214,7 +214,7 @@ class JointCrossEncoderTrainer:
                     if val_dataloader is not None:
                         acc = self.val_evaluation(val_dataloader, metrics=metrics)
                         train_result["f1 score"] = acc[0]
-                    wandb_tracker.log(train_result)
+                    wandb_tracker.log(train_result, step=evaluation_steps)
                     table = wandb.Table(data=acc[1].tolist(), columns=["supported", "refuted", "nei"])
                     wandb_tracker.log({"predictions confusion matrix":table}, commit=False, step=evaluation_steps)
                     self.model.train()
