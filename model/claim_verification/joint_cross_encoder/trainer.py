@@ -265,7 +265,6 @@ class JointCrossEncoderTrainer:
             self.accelerator.wait_for_everyone()
 
         if not save_best_model:
-            self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
             if push_to_hub:
                 self.save_to_hub(model_name)
