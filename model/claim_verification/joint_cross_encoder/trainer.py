@@ -216,7 +216,7 @@ class JointCrossEncoderTrainer:
                         train_result["f1 score"] = acc[0]
                     wandb_tracker.log(train_result)
                     table = wandb.Table(data=acc[1].tolist(), columns=["supported", "refuted", "nei"])
-                    wandb_tracker.log({"predictions confusion matrix":table}, commit=False)
+                    wandb_tracker.log({"predictions confusion matrix":table}, commit=False, step=evaluation_steps)
                     self.model.train()
 
             # epoch evaluation
