@@ -41,34 +41,6 @@ class JointCrossEncoderTrainer:
             pretrained_model = None,
             use_lora:bool=False
     ):
-        self.config = config
-        self.args = args
-        if not pretrained_model:
-            self.model = JointCrossEncoder(config=config)
-            self.tokenizer = AutoTokenizer.from_pretrained(config.model)
-        else:
-            self.model = JointCrossEncoder.from_pretrained(pretrained_model, token='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')
-            self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model, token='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')
-        if use_lora:
-            peft_config = LoraConfig(
-                #task_type=TaskType.FEATURE_EXTRACTION,
-                inference_mode=False,
-                r=8,
-                lora_alpha=32,
-                bias='all',
-                lora_dropout=0.1,
-                target_modules='feature_extractor.*.query_key_value*|feature_extractor.*.mlp.dense_h_to_4h|feature_extractor.*.mlp.dense_4h_to_h|feature_extractor.*.dense*|evident_aggrerators.*.out_proj',
-                modules_to_save=[
-                    'aggerator',
-                    #'single_evident_linear',
-                ]
-            )
-            self.model = get_peft_model(self.model, peft_config)
-            print('*********************')
-            print(self.model.print_trainable_parameters())
-            print('*********************')
-
-
         # deepspeed_plugin = DeepSpeedPlugin(
         #     gradient_accumulation_steps=1,
         #     gradient_clipping=1,
@@ -103,6 +75,37 @@ class JointCrossEncoderTrainer:
             }}
         )
         self.device = self.accelerator.device
+
+        self.config = config
+        self.args = args
+        if not pretrained_model:
+            self.accelerator.wait_for_everyone()
+            self.model = JointCrossEncoder(config=config)
+            self.accelerator.wait_for_everyone()
+            self.tokenizer = AutoTokenizer.from_pretrained(config.model)
+        else:
+            self.accelerator.wait_for_everyone()
+            self.model = JointCrossEncoder.from_pretrained(pretrained_model, token='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')
+            self.accelerator.wait_for_everyone()
+            self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model, token='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')
+        if use_lora:
+            peft_config = LoraConfig(
+                #task_type=TaskType.FEATURE_EXTRACTION,
+                inference_mode=False,
+                r=8,
+                lora_alpha=32,
+                bias='all',
+                lora_dropout=0.1,
+                target_modules='feature_extractor.*.query_key_value*|feature_extractor.*.mlp.dense_h_to_4h|feature_extractor.*.mlp.dense_4h_to_h|feature_extractor.*.dense*|evident_aggrerators.*.out_proj',
+                modules_to_save=[
+                    'aggerator',
+                    #'single_evident_linear',
+                ]
+            )
+            self.model = get_peft_model(self.model, peft_config)
+            print('*********************')
+            print(self.model.print_trainable_parameters())
+            print('*********************')
 
     
     def smart_batching_collate(self, batch):
