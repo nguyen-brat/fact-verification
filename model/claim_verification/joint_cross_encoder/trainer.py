@@ -132,6 +132,12 @@ class JointCrossEncoderTrainer:
             model_name="claim_verify_join_encoder_v2",
             push_to_hub=False,
     ):
+        if push_to_hub:
+            self.accelerator.wait_for_everyone()
+            self.tokenizer.push_to_hub(model_name, token='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', private=True)
+        self.accelerator.wait_for_everyone()
+        self.tokenizer.save_pretrained(output_path)
+
         wandb_tracker = self.accelerator.get_tracker("wandb")
         train_dataloader.collate_fn = self.smart_batching_collate
         if val_dataloader != None:
@@ -227,7 +233,6 @@ class JointCrossEncoderTrainer:
                 if (acc[0] > self.best_score) and save_best_model:
                     patient_count = 0
                     self.best_score = acc[0]
-                    self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
                     if push_to_hub:
                         self.save_to_hub(model_name)
@@ -241,7 +246,6 @@ class JointCrossEncoderTrainer:
                 if (loss_value.item() < self.best_losses) and save_best_model:
                     patient_count = 0
                     self.best_losses = loss_value.item()
-                    self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
                     if push_to_hub:
                         self.save_to_hub(model_name)
@@ -288,21 +292,21 @@ class JointCrossEncoderTrainer:
     
     def save_during_training(self, output_path):
         unwrapped_model = self.accelerator.unwrap_model(self.model)
+        self.accelerator.wait_for_everyone()
         unwrapped_model.save_pretrained(
             output_path,
             is_main_process=self.accelerator.is_main_process,
             save_function=self.accelerator.save,
             state_dict=self.accelerator.get_state_dict(self.model),
         )
-        self.tokenizer.save_pretrained(output_path)
 
     def save_to_hub(
             self,
             model_name='claim_verify_join_encoder_v2',
     ):
         unwrapped_model = self.accelerator.unwrap_model(self.model)
+        self.accelerator.wait_for_everyone()
         unwrapped_model.push_to_hub(model_name, token='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', private=True)
-        self.tokenizer.push_to_hub(model_name, token='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', private=True)
     
 
 def main(args):
