@@ -230,8 +230,7 @@ class JointCrossEncoderTrainer:
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
                     if push_to_hub:
-                        if self.accelerator.is_main_process:
-                            self.save_to_hub(model_name)
+                        self.save_to_hub(model_name)
                 elif patient_count == patient:
                     break
                 else:
@@ -245,8 +244,7 @@ class JointCrossEncoderTrainer:
                     self.accelerator.wait_for_everyone()
                     self.save_during_training(output_path)
                     if push_to_hub:
-                        if self.accelerator.is_main_process:
-                            self.save_to_hub(model_name)
+                        self.save_to_hub(model_name)
                 elif patient_count == patient:
                     break
                 else:
@@ -266,8 +264,7 @@ class JointCrossEncoderTrainer:
             self.accelerator.wait_for_everyone()
             self.save_during_training(output_path)
             if push_to_hub:
-                if self.accelerator.is_main_process:
-                    self.save_to_hub(model_name)
+                self.save_to_hub(model_name)
 
         self.accelerator.end_training()
         return train_loss_list, acc_list
