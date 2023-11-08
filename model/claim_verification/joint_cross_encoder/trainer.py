@@ -79,14 +79,10 @@ class JointCrossEncoderTrainer:
         self.config = config
         self.args = args
         if not pretrained_model:
-            self.accelerator.wait_for_everyone()
             self.model = JointCrossEncoder(config=config)
-            self.accelerator.wait_for_everyone()
             self.tokenizer = AutoTokenizer.from_pretrained(config.model)
         else:
-            self.accelerator.wait_for_everyone()
             self.model = JointCrossEncoder.from_pretrained(pretrained_model, token='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')
-            self.accelerator.wait_for_everyone()
             self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model, token='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')
         if use_lora:
             peft_config = LoraConfig(
@@ -136,11 +132,10 @@ class JointCrossEncoderTrainer:
             push_to_hub=False,
     ):
         if push_to_hub:
-            self.accelerator.wait_for_everyone()
             if self.accelerator.is_main_process:
+                self.accelerator.wait_for_everyone()
                 self.tokenizer.push_to_hub(model_name, token='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', private=True)
-        self.accelerator.wait_for_everyone()
-        self.tokenizer.save_pretrained(output_path)
+                self.tokenizer.save_pretrained(output_path)
 
         wandb_tracker = self.accelerator.get_tracker("wandb")
         train_dataloader.collate_fn = self.smart_batching_collate
