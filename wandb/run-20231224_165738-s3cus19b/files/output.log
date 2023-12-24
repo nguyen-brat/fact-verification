@@ -1,0 +1,64 @@
+
+epoch: 1/100
+
+
+
+Iteration:   1%|██▊                                                                                                                                                                                                                 | 19/1457 [00:07<08:50,  2.71it/s]
+
+
+
+Iteration:   3%|█████▋                                                                                                                                                                                                              | 39/1457 [00:27<15:04,  1.57it/s]
+
+
+
+Iteration:   4%|████████▎                                                                                                                                                                                                           | 57/1457 [00:45<16:55,  1.38it/s]
+
+
+
+
+Iteration:   5%|███████████                                                                                                                                                                                                         | 76/1457 [01:05<18:02,  1.28it/s]
+
+
+
+
+
+Iteration:   7%|██████████████▎                                                                                                                                                                                                     | 98/1457 [01:25<16:46,  1.35it/s]
+
+
+
+
+
+Iteration:   8%|█████████████████                                                                                                                                                                                                  | 118/1457 [01:45<16:44,  1.33it/s]
+Iteration:   8%|█████████████████▏                                                                                                                                                                                                 | 119/1457 [01:47<20:05,  1.11it/s]
+Traceback (most recent call last):
+  File "/home/nguyen/code/fact-verification/train/fact_verify.py", line 10, in <module>
+    join_fact_verify_run()
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/trainer.py", line 390, in join_fact_verify_run
+    main(args=args)
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/trainer.py", line 345, in main
+    trainer(
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/trainer.py", line 220, in __call__
+    acc = self.val_evaluation(val_dataloader, metrics=metrics)
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/trainer.py", line 283, in val_evaluation
+    multi_evident_logits, _ = self.model(fact_claims_ids, is_positive)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1519, in forward
+    else self._run_ddp_forward(*inputs, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1355, in _run_ddp_forward
+    return self.module(*inputs, **kwargs)  # type: ignore[index]
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/accelerate/utils/operations.py", line 680, in forward
+    return model_forward(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/accelerate/utils/operations.py", line 668, in __call__
+    return convert_to_fp32(self.model_forward(*args, **kwargs))
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/amp/autocast_mode.py", line 16, in decorate_autocast
+    return func(*args, **kwargs)
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/model.py", line 164, in forward
+    single_evident_output = fact_embed[torch.arange(fact_embed.shape[0]).tolist(), is_positive.tolist(), :] # is positive is a 1-d tensor of id of positive sample (real sample) in every batch sample
+KeyboardInterrupt

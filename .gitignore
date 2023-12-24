@@ -5,3 +5,5 @@ data/clean_data/train.json
 data/raw_data/ise-dsc01-train.json
 hidden
 visualize.json
+.vscode
+__pycache__

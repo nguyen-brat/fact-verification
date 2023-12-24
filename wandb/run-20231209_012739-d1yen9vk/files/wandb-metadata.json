@@ -1,0 +1,259 @@
+{
+    "os": "Linux-5.15.0-91-generic-x86_64-with-glibc2.35",
+    "python": "3.10.0",
+    "heartbeatAt": "2023-12-08T18:27:41.564868",
+    "startedAt": "2023-12-08T18:27:39.958831",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--epochs",
+        "100",
+        "--model",
+        "keepitreal/vietnamese-sbert",
+        "--train_data_path",
+        "data/clean_data/train.json",
+        "--val_data_path",
+        "data/clean_data/valid.json",
+        "--batch_size",
+        "12",
+        "--save_model_path",
+        "model/claim_verification/joint_cross_encoder/saved_model",
+        "--model_name",
+        "fact_verify",
+        "--patient",
+        "3",
+        "--no-use_focal_loss",
+        "--no-push_to_hub",
+        "--weight",
+        "0.1",
+        "0.8",
+        "0.1",
+        "--project_name",
+        "uit testing",
+        "--evaluation_steps",
+        "20"
+    ],
+    "state": "running",
+    "program": "/home/nguyen/code/fact-verification/train/fact_verify.py",
+    "codePathLocal": "train/fact_verify.py",
+    "codePath": "train/fact_verify.py",
+    "git": {
+        "remote": "https://github.com/nguyen-brat/fact-verification.git",
+        "commit": "c9997adb0cb8c752d8808c3eb2645a873d37a93a"
+    },
+    "email": "julius.2003.no.2@gmail.com",
+    "root": "/home/nguyen/code/fact-verification",
+    "host": "nguyen-System-Product-Name",
+    "username": "nguyen",
+    "executable": "/home/nguyen/miniconda3/envs/testing/bin/python",
+    "cpu_count": 18,
+    "cpu_count_logical": 36,
+    "cpu_freq": {
+        "current": 2308.01575,
+        "min": 1000.0,
+        "max": 4300.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 1130.013,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 2300.0,
+            "min": 1000.0,
+            "max": 4300.0
+        },
+        {
+            "current": 4214.02,
+            "min": 1000.0,
+            "max": 4300.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 1832.2052917480469,
+            "used": 33.792083740234375
+        }
+    },
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "gpu_count": 2,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 3090",
+            "memory_total": 25769803776
+        },
+        {
+            "name": "NVIDIA GeForce RTX 3090",
+            "memory_total": 25769803776
+        }
+    ],
+    "memory": {
+        "total": 125.47367095947266
+    }
+}

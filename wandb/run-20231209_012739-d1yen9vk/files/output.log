@@ -1,0 +1,226 @@
+
+epoch: 1/100
+
+
+
+Iteration:   1%|██▊                                                                                                                                                                                                                 | 19/1457 [00:07<09:08,  2.62it/s]
+
+
+Iteration:   3%|█████▍                                                                                                                                                                                                              | 37/1457 [00:27<16:28,  1.44it/s]
+
+
+
+
+Iteration:   4%|████████▌                                                                                                                                                                                                           | 59/1457 [00:47<16:18,  1.43it/s]
+
+
+
+Iteration:   5%|██████████▊                                                                                                                                                                                                         | 74/1457 [01:05<18:59,  1.21it/s]
+
+
+
+Iteration:   7%|█████████████▉                                                                                                                                                                                                      | 96/1457 [01:25<17:40,  1.28it/s]
+
+
+
+
+Iteration:   8%|████████████████▉                                                                                                                                                                                                  | 117/1457 [01:45<16:59,  1.31it/s]
+
+
+
+
+
+Iteration:  10%|████████████████████▏                                                                                                                                                                                              | 139/1457 [02:05<15:45,  1.39it/s]
+
+
+
+Iteration:  11%|██████████████████████▍                                                                                                                                                                                            | 155/1457 [02:23<17:22,  1.25it/s]
+
+
+
+
+
+Iteration:  12%|█████████████████████████▊                                                                                                                                                                                         | 178/1457 [02:44<15:38,  1.36it/s]
+
+
+
+Iteration:  14%|████████████████████████████▊                                                                                                                                                                                      | 199/1457 [03:03<14:58,  1.40it/s]
+
+
+
+Iteration:  15%|███████████████████████████████▎                                                                                                                                                                                   | 216/1457 [03:22<16:08,  1.28it/s]
+
+
+
+
+Iteration:  16%|██████████████████████████████████▏                                                                                                                                                                                | 236/1457 [03:42<16:02,  1.27it/s]
+
+
+
+
+
+Iteration:  18%|█████████████████████████████████████▎                                                                                                                                                                             | 258/1457 [04:02<14:44,  1.36it/s]
+
+
+
+
+
+Iteration:  19%|████████████████████████████████████████▍                                                                                                                                                                          | 279/1457 [04:21<14:06,  1.39it/s]
+
+
+
+
+Iteration:  21%|███████████████████████████████████████████▎                                                                                                                                                                       | 299/1457 [04:41<13:52,  1.39it/s]
+
+
+
+
+Iteration:  22%|██████████████████████████████████████████████                                                                                                                                                                     | 318/1457 [05:00<14:03,  1.35it/s]
+
+
+
+
+
+Iteration:  23%|█████████████████████████████████████████████████                                                                                                                                                                  | 339/1457 [05:20<13:32,  1.38it/s]
+
+
+
+
+Iteration:  25%|███████████████████████████████████████████████████▉                                                                                                                                                               | 359/1457 [05:40<13:13,  1.38it/s]
+
+
+
+
+Iteration:  26%|██████████████████████████████████████████████████████▉                                                                                                                                                            | 379/1457 [05:59<13:01,  1.38it/s]
+
+
+
+Iteration:  27%|█████████████████████████████████████████████████████████▎                                                                                                                                                         | 396/1457 [06:18<13:54,  1.27it/s]
+
+
+
+
+Iteration:  29%|████████████████████████████████████████████████████████████▍                                                                                                                                                      | 417/1457 [06:38<13:15,  1.31it/s]
+
+
+
+
+Iteration:  30%|███████████████████████████████████████████████████████████████▌                                                                                                                                                   | 439/1457 [06:58<12:13,  1.39it/s]
+
+
+Iteration:  32%|██████████████████████████████████████████████████████████████████▍                                                                                                                                                | 459/1457 [07:17<11:52,  1.40it/s]
+
+
+Iteration:  33%|█████████████████████████████████████████████████████████████████████▏                                                                                                                                             | 478/1457 [07:36<11:55,  1.37it/s]
+
+
+
+Iteration:  34%|████████████████████████████████████████████████████████████████████████▎                                                                                                                                          | 499/1457 [07:56<11:25,  1.40it/s]
+
+
+Iteration:  35%|██████████████████████████████████████████████████████████████████████████▋                                                                                                                                        | 516/1457 [08:14<12:07,  1.29it/s]
+
+
+
+Iteration:  37%|██████████████████████████████████████████████████████████████████████████████                                                                                                                                     | 539/1457 [08:34<10:52,  1.41it/s]
+
+
+
+Iteration:  38%|████████████████████████████████████████████████████████████████████████████████▉                                                                                                                                  | 559/1457 [08:56<11:16,  1.33it/s]
+
+
+Iteration:  40%|███████████████████████████████████████████████████████████████████████████████████▍                                                                                                                               | 576/1457 [09:14<11:38,  1.26it/s]
+
+
+
+Iteration:  41%|██████████████████████████████████████████████████████████████████████████████████████▌                                                                                                                            | 598/1457 [09:34<10:37,  1.35it/s]
+
+
+Iteration:  42%|█████████████████████████████████████████████████████████████████████████████████████████▋                                                                                                                         | 619/1457 [09:54<10:06,  1.38it/s]
+
+
+
+Iteration:  44%|████████████████████████████████████████████████████████████████████████████████████████████▌                                                                                                                      | 639/1457 [10:14<09:48,  1.39it/s]
+
+
+Iteration:  45%|███████████████████████████████████████████████████████████████████████████████████████████████▎                                                                                                                   | 658/1457 [10:33<09:47,  1.36it/s]
+
+
+
+Iteration:  47%|██████████████████████████████████████████████████████████████████████████████████████████████████▏                                                                                                                | 678/1457 [10:53<09:40,  1.34it/s]
+
+
+
+
+Iteration:  48%|█████████████████████████████████████████████████████████████████████████████████████████████████████▏                                                                                                             | 699/1457 [11:13<09:08,  1.38it/s]
+
+
+Iteration:  49%|████████████████████████████████████████████████████████████████████████████████████████████████████████                                                                                                           | 719/1457 [11:32<08:53,  1.38it/s]
+
+
+
+Iteration:  51%|███████████████████████████████████████████████████████████████████████████████████████████████████████████                                                                                                        | 739/1457 [11:52<08:39,  1.38it/s]
+
+
+Iteration:  52%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████▋                                                                                                     | 757/1457 [12:10<08:47,  1.33it/s]
+
+
+
+Iteration:  53%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████▊                                                                                                  | 779/1457 [12:30<08:03,  1.40it/s]
+
+
+Iteration:  55%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████▎                                                                                               | 796/1457 [12:49<08:29,  1.30it/s]
+
+
+
+Iteration:  56%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▍                                                                                            | 818/1457 [13:09<07:47,  1.37it/s]
+
+
+
+
+Iteration:  58%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▌                                                                                         | 839/1457 [13:28<07:22,  1.40it/s]
+
+
+
+Iteration:  59%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▍                                                                                      | 859/1457 [13:48<07:08,  1.40it/s]
+
+
+Iteration:  60%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▏                                                                                   | 878/1457 [14:07<07:06,  1.36it/s]
+
+
+
+
+Iteration:  62%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▏                                                                                | 899/1457 [14:27<06:39,  1.40it/s]
+Iteration:  62%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▏                                                                                | 899/1457 [14:33<09:02,  1.03it/s]
+Traceback (most recent call last):
+  File "/home/nguyen/code/fact-verification/train/fact_verify.py", line 10, in <module>
+    join_fact_verify_run()
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/trainer.py", line 390, in join_fact_verify_run
+    main(args=args)
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/trainer.py", line 345, in main
+    trainer(
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/trainer.py", line 220, in __call__
+    acc = self.val_evaluation(val_dataloader, metrics=metrics)
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/trainer.py", line 283, in val_evaluation
+    multi_evident_logits, _ = self.model(fact_claims_ids, is_positive)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1519, in forward
+    else self._run_ddp_forward(*inputs, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1355, in _run_ddp_forward
+    return self.module(*inputs, **kwargs)  # type: ignore[index]
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/accelerate/utils/operations.py", line 680, in forward
+    return model_forward(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/accelerate/utils/operations.py", line 668, in __call__
+    return convert_to_fp32(self.model_forward(*args, **kwargs))
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/amp/autocast_mode.py", line 16, in decorate_autocast
+    return func(*args, **kwargs)
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/model.py", line 164, in forward
+    single_evident_output = fact_embed[torch.arange(fact_embed.shape[0]).tolist(), is_positive.tolist(), :] # is positive is a 1-d tensor of id of positive sample (real sample) in every batch sample
+KeyboardInterrupt

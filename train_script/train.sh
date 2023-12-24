@@ -1,0 +1,14 @@
+accelerate launch  --multi_gpu --num_processes 2 --config_file 'config/ds_zero3_cpu.yaml' train/fact_verify.py \
+                    --epochs 100 \
+                    --model "keepitreal/vietnamese-sbert" \
+                    --train_data_path "data/clean_data/train.json" \
+                    --val_data_path "data/clean_data/valid.json" \
+                    --batch_size 12 \
+                    --save_model_path "model/claim_verification/joint_cross_encoder/saved_model" \
+                    --model_name "fact_verify" \
+                    --patient 3 \
+                    --no-use_focal_loss \
+                    --no-push_to_hub \
+                    --weight 0.1 0.8 0.1 \
+                    --project_name "uit testing" \
+                    --evaluation_steps 200

@@ -1,0 +1,83 @@
+tokenizer_config.json: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 313/313 [00:00<00:00, 549kB/s]
+vocab.txt: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 895k/895k [00:01<00:00, 877kB/s]
+
+bpe.codes: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1.14M/1.14M [00:01<00:00, 858kB/s]
+Iteration:   0%|                                                                                                                                                                                                                                            | 0/1457 [00:00<?, ?it/s]
+
+
+
+
+Iteration:   1%|██▉                                                                                                                                                                                                                                | 19/1457 [00:07<08:45,  2.74it/s]
+
+
+
+Iteration:   3%|██████                                                                                                                                                                                                                             | 39/1457 [00:27<15:21,  1.54it/s]
+
+
+
+Iteration:   4%|████████▉                                                                                                                                                                                                                          | 57/1457 [00:46<17:04,  1.37it/s]
+
+
+
+
+
+Iteration:   5%|████████████▎                                                                                                                                                                                                                      | 79/1457 [01:06<16:12,  1.42it/s]
+
+
+
+
+Iteration:   7%|███████████████▍                                                                                                                                                                                                                   | 99/1457 [01:25<16:03,  1.41it/s]
+
+
+
+
+Iteration:   8%|██████████████████▎                                                                                                                                                                                                               | 118/1457 [01:44<16:14,  1.37it/s]
+
+
+
+
+
+Iteration:  10%|█████████████████████▌                                                                                                                                                                                                            | 139/1457 [02:04<15:40,  1.40it/s]
+
+
+
+
+Iteration:  11%|████████████████████████▋                                                                                                                                                                                                         | 159/1457 [02:24<15:36,  1.39it/s]
+
+
+
+
+Iteration:  12%|███████████████████████████▊                                                                                                                                                                                                      | 179/1457 [02:43<15:16,  1.40it/s]
+Iteration:  12%|███████████████████████████▊                                                                                                                                                                                                      | 179/1457 [02:49<20:10,  1.06it/s]
+Traceback (most recent call last):
+  File "/home/nguyen/code/fact-verification/train/fact_verify.py", line 10, in <module>
+    join_fact_verify_run()
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/trainer.py", line 390, in join_fact_verify_run
+    main(args=args)
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/trainer.py", line 345, in main
+    trainer(
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/trainer.py", line 220, in __call__
+    acc = self.val_evaluation(val_dataloader, metrics=metrics)
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/trainer.py", line 283, in val_evaluation
+    multi_evident_logits, _ = self.model(fact_claims_ids, is_positive)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1519, in forward
+    else self._run_ddp_forward(*inputs, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1355, in _run_ddp_forward
+    return self.module(*inputs, **kwargs)  # type: ignore[index]
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/accelerate/utils/operations.py", line 680, in forward
+    return model_forward(*args, **kwargs)
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/accelerate/utils/operations.py", line 668, in __call__
+    return convert_to_fp32(self.model_forward(*args, **kwargs))
+  File "/home/nguyen/miniconda3/envs/testing/lib/python3.10/site-packages/torch/amp/autocast_mode.py", line 16, in decorate_autocast
+    return func(*args, **kwargs)
+  File "/home/nguyen/code/fact-verification/model/claim_verification/joint_cross_encoder/model.py", line 164, in forward
+    single_evident_output = fact_embed[torch.arange(fact_embed.shape[0]).tolist(), is_positive.tolist(), :] # is positive is a 1-d tensor of id of positive sample (real sample) in every batch sample
+KeyboardInterrupt

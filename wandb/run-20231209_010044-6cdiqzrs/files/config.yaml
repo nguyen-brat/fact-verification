@@ -1,0 +1,71 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    python_version: 3.10.0
+    cli_version: 0.16.1
+    framework: huggingface
+    huggingface_version: 4.35.2
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1702058444.284122
+    t:
+      1:
+      - 1
+      - 5
+      - 11
+      - 41
+      - 49
+      - 53
+      - 55
+      - 71
+      - 75
+      - 98
+      2:
+      - 1
+      - 5
+      - 11
+      - 41
+      - 49
+      - 53
+      - 55
+      - 71
+      - 75
+      - 98
+      3:
+      - 13
+      - 23
+      4: 3.10.0
+      5: 0.16.1
+      6: 4.35.2
+      8:
+      - 5
+      13: linux-x86_64
+num_epochs:
+  desc: null
+  value: 100
+batch_size:
+  desc: null
+  value: 12
+pretrained_model:
+  desc: null
+  value: keepitreal/vietnamese-sbert
+num hard negative:
+  desc: null
+  value: 4
+tokenize:
+  desc: null
+  value: false
+use_focal_loss:
+  desc: null
+  value: false
+weight of class:
+  desc: null
+  value:
+  - 0.1
+  - 0.8
+  - 0.1
+patient:
+  desc: null
+  value: 3
